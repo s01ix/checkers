@@ -13,7 +13,8 @@ public class Main extends Application {
         Board board = new Board();
         GridPane gridPane = board.initBoard();
 
-        Scene scene = new Scene(gridPane, 400, 400);
+        int windowSize = Board.SIZE * 50;
+        Scene scene = new Scene(gridPane, windowSize, windowSize);
         primaryStage.setTitle("Checkers");
         primaryStage.setScene(scene);
         primaryStage.show();

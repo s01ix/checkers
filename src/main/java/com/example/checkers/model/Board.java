@@ -31,18 +31,19 @@ public class Board {
                 } else {
                     cell.setStyle("-fx-background-color: RED;");
 
-                    if (row < 3) {
+                    int piecesRows = (SIZE / 2) - 1;
+                    if (row < piecesRows) {
                         Piece blackPiece = new Piece(Piece.PieceType.BLACK);
                         cell.setGraphic(blackPiece.getImageView());
                         cell.setUserData(blackPiece);
-                    } else if (row > 4) {
+                    } else if (row >= SIZE - piecesRows) {
                         Piece whitePiece = new Piece(Piece.PieceType.WHITE);
                         cell.setGraphic(whitePiece.getImageView());
                         cell.setUserData(whitePiece);
                     }
+                    move.handleMove(cell, row, col);
                 }
 
-                move.handleMove(cell, row, col);
                 squares[row][col] = cell;
                 grid.add(cell, col, row);
             }
