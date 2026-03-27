@@ -1,5 +1,5 @@
 package com.example.checkers.model;
-import javafx.scene.control.Button;
+//import javafx.scene.control.Button;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -42,12 +42,11 @@ public class GameManager {
             }
         }
 
-        Button sourceSquare = board.getSquares()[fromRow][fromCol];
-        Piece piece = (Piece) sourceSquare.getUserData();
+        // Pobranie czystego Piece
+        Piece piece = board.getPiece(fromRow,fromCol);
         if (piece == null) return false;
 
-        Button targetSquare = board.getSquares()[toRow][toCol];
-        if (targetSquare.getUserData() != null) return false;
+        if(board.getPiece(toRow,toCol) != null) return false;
 
         int dx = Math.abs(toCol - fromCol);
         int dy = Math.abs(toRow - fromRow);
@@ -81,8 +80,7 @@ public class GameManager {
         if (dx == 2 && Math.abs(rowDiff) == 2) {
             int jumpedRow = (fromRow + toRow) / 2;
             int jumpedCol = (fromCol + toCol) / 2;
-            Button jumpedSquare = board.getSquares()[jumpedRow][jumpedCol];
-            Piece jumpedPiece = (Piece) jumpedSquare.getUserData();
+            Piece jumpedPiece = board.getPiece(jumpedRow,jumpedCol);
             if (jumpedPiece != null && jumpedPiece.getType() != piece.getType()) {
                 int maxPossible = getPlayerMaxCaptures(currentPlayer);
                 boolean[][] simulatedCaptures = new boolean[Board.SIZE][Board.SIZE];
@@ -108,8 +106,7 @@ public class GameManager {
         boolean encounteredPiece = false;
 
         while (currentRow != toRow && currentCol != toCol) {
-            Button currentSquare = board.getSquares()[currentRow][currentCol];
-            Piece p = (Piece) currentSquare.getUserData();
+            Piece p = board.getPiece(currentRow,currentCol);
 
             if (p != null) {
                 if (encounteredPiece) return false;
@@ -125,7 +122,7 @@ public class GameManager {
             int jRow = fromRow + rowDir;
             int jCol = fromCol + colDir;
             while (jRow != toRow && jCol != toCol) {
-                if (board.getSquares()[jRow][jCol].getUserData() != null) break;
+                if (board.getPiece(jRow,jCol) != null )break;
                 jRow += rowDir;
                 jCol += colDir;
             }
@@ -153,10 +150,9 @@ public class GameManager {
 
     public int getPlayerMaxCaptures(Player player) {
         int maxCapture = 0;
-        Button[][] squares = board.getSquares();
         for(int r = 0; r < Board.SIZE; r++){
             for(int c = 0; c < Board.SIZE; c++){
-                Piece p = (Piece) squares[r][c].getUserData();
+                Piece p = board.getPiece(r,c);
                 if (p != null && p.getType() == player.getColor()) {
                     // Blokujemy inne pionki, jeśli jesteśmy w trakcie wielokrotnego bicia
                     if (isMultiCapturing && (r != multiCaptureRow || c != multiCaptureCol)) continue;
@@ -184,7 +180,7 @@ public class GameManager {
                     int enemyCol = -1;
 
                     while (currentRow >= 0 && currentRow < Board.SIZE && currentCol >= 0 && currentCol < Board.SIZE) {
-                        Piece p = (Piece) board.getSquares()[currentRow][currentCol].getUserData();
+                        Piece p = board.getPiece(currentRow,currentCol);
                         if (p != null) {
                             if (p.getType() == piece.getType() || foundEnemy || captured[currentRow][currentCol]) {
                                 break;
@@ -212,9 +208,9 @@ public class GameManager {
                     int targetRow = row + 2 * dr;
                     int targetCol = col + 2 * dc;
                     if (targetRow >= 0 && targetRow < Board.SIZE && targetCol >= 0 && targetCol < Board.SIZE) {
-                        Piece p = (Piece) board.getSquares()[jumpedRow][jumpedCol].getUserData();
+                        Piece p = board.getPiece(jumpedRow,jumpedCol);
                         if (p != null && p.getType() != piece.getType() && !captured[jumpedRow][jumpedCol]) {
-                            if (board.getSquares()[targetRow][targetCol].getUserData() == null) {
+                            if (board.getPiece(targetRow, targetCol) == null) {
                                 captured[jumpedRow][jumpedCol] = true;
                                 int captures = 1 + getPieceMaxCaptures(targetRow, targetCol, piece, captured);
                                 if (captures > max) max = captures;
@@ -228,7 +224,7 @@ public class GameManager {
         return max;
     }
 
-    private Button getCapturedSquare(int fromRow, int fromCol, int toRow, int toCol) {
+    private int[] getCapturedCoords(int fromRow, int fromCol, int toRow, int toCol) {
         int rowDir = (toRow - fromRow) > 0 ? 1 : -1;
         int colDir = (toCol - fromCol) > 0 ? 1 : -1;
 
@@ -236,9 +232,8 @@ public class GameManager {
         int currentCol = fromCol + colDir;
 
         while (currentRow != toRow && currentCol != toCol) {
-            Button currentSquare = board.getSquares()[currentRow][currentCol];
-            if (currentSquare.getUserData() != null) {
-                return currentSquare;
+            if (board.getPiece(currentRow, currentCol) != null) {
+                return new int[]{currentRow, currentCol};
             }
             currentRow += rowDir;
             currentCol += colDir;
@@ -248,19 +243,14 @@ public class GameManager {
 
     public boolean performMove(int fromRow, int fromCol, int toRow, int toCol) {
         if (isAvailableMove(fromRow, fromCol, toRow, toCol)) {
-            Button[][] squares = board.getSquares();
-            Button sourceSquare = squares[fromRow][fromCol];
-            Button targetSquare = squares[toRow][toCol];
 
-            Piece piece = (Piece) sourceSquare.getUserData();
-
+            Piece piece = board.getPiece(fromRow,fromCol);
             boolean wasCapture = false;
 
-            Button capturedSquare = getCapturedSquare(fromRow, fromCol, toRow, toCol);
+            int [] capturedCords = getCapturedCoords(fromRow, fromCol, toRow, toCol);
 
-            if (capturedSquare != null) {
-                capturedSquare.setGraphic(null);
-                capturedSquare.setUserData(null);
+            if (capturedCords != null) {
+                board.removePiece(capturedCords[0], capturedCords[1]);
                 wasCapture = true;
                 System.out.println("Zbito pionek przeciwnika!");
             }
@@ -273,10 +263,7 @@ public class GameManager {
                 movesWithoutCapture++;
             }
 
-            sourceSquare.setUserData(null);
-            sourceSquare.setGraphic(null);
-            targetSquare.setGraphic(piece.getImageView());
-            targetSquare.setUserData(piece);
+            board.movePiece(fromRow, fromCol, toRow, toCol);
 
             if (wasCapture && getPieceMaxCaptures(toRow, toCol, piece, new boolean[Board.SIZE][Board.SIZE]) > 0) {                isMultiCapturing = true;
                 multiCaptureRow = toRow;
@@ -311,7 +298,7 @@ public class GameManager {
         int blackPieces = 0;
         for(int r = 0; r < Board.SIZE; r++){
             for(int c = 0; c < Board.SIZE; c++){
-                Piece piece = (Piece) board.getSquares()[r][c].getUserData();
+                Piece piece = board.getPiece(r, c);
                 if(piece != null){
                     if(piece.getType() == Piece.PieceType.WHITE){
                         whitePeace++;
@@ -363,11 +350,10 @@ public class GameManager {
         int whiteKings = 0;
         int blackKings = 0;
         int totalPieces = 0;
-        Button[][] squares = board.getSquares();
 
         for (int r = 0; r < Board.SIZE; r++) {
             for (int c = 0; c < Board.SIZE; c++) {
-                Piece p = (Piece) squares[r][c].getUserData();
+                Piece p = board.getPiece(r,c);
                 if (p != null) {
                     totalPieces++;
                     if (p.isKing()) {
@@ -389,10 +375,10 @@ public class GameManager {
     // Tworzy tekstową "mapę" całej planszy, żeby łatwo sprawdzić, czy układ się powtórzył
     private String getBoardStateString() {
         StringBuilder sb = new StringBuilder();
-        Button[][] squares = board.getSquares();
+
         for (int row = 0; row < Board.SIZE; row++) {
             for (int col = 0; col < Board.SIZE; col++) {
-                Piece piece = (Piece) squares[row][col].getUserData();
+                Piece piece = board.getPiece(row, col);
                 if (piece == null) {
                     sb.append("-");
                 } else {
@@ -408,10 +394,9 @@ public class GameManager {
     private boolean hasAnyValidMoves(Player player) {
         if (getPlayerMaxCaptures(player) > 0) return true;
 
-        Button[][] squares = board.getSquares();
         for (int row = 0; row < Board.SIZE; row++) {
             for (int col = 0; col < Board.SIZE; col++) {
-                Piece piece = (Piece) squares[row][col].getUserData();
+                Piece piece = board.getPiece(row,col);
                 if (piece != null && piece.getType() == player.getColor()) {
 
                     if (piece.isKing()) {
@@ -422,7 +407,7 @@ public class GameManager {
                                 int tRow = row + dr;
                                 int tCol = col + dc;
                                 if (tRow >= 0 && tRow < Board.SIZE && tCol >= 0 && tCol < Board.SIZE) {
-                                    if (squares[tRow][tCol].getUserData() == null) return true;
+                                    if (board.getPiece(row, col) == null) return true;
                                 }
                             }
                         }
@@ -433,7 +418,7 @@ public class GameManager {
                             int tRow = row + direction;
                             int tCol = col + dc;
                             if (tRow >= 0 && tRow < Board.SIZE && tCol >= 0 && tCol < Board.SIZE) {
-                                if (squares[tRow][tCol].getUserData() == null) return true;
+                                if (board.getPiece(tRow, tCol) == null) return true;
                             }
                         }
                     }
@@ -442,5 +427,11 @@ public class GameManager {
             }
         }
         return false;
+    }
+
+    public boolean isSelectable(int row, int col) {
+        Piece piece = board.getPiece(row, col);
+        // Można zaznaczyć tylko jeśli to pionek aktualnego gracza
+        return piece != null && piece.getType() == currentPlayer.getColor();
     }
 }

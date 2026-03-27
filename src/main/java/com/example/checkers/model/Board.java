@@ -1,53 +1,65 @@
 package com.example.checkers.model;
 
-import javafx.scene.layout.GridPane;
-import javafx.scene.control.*;
+//import javafx.scene.layout.GridPane;
+//import javafx.scene.control.*;
 
 public class Board {
-    private GameManager gameManager;
-    private Move move;
+//    private GameManager gameManager;
+//    private Move move;
     public static final int SIZE = 8;
-    private final Button[][] squares = new Button[SIZE][SIZE];
+    private final Piece[][] squares = new Piece[SIZE][SIZE];
 
     public Board() {
-        this.gameManager = new GameManager(this);
-        this.move = new Move(this.gameManager);
+//        this.gameManager = new GameManager(this);
+//        this.move = new Move(this.gameManager);
+        initStartingPositions();
     }
 
-    public Button[][] getSquares() {
-        return squares;
-    }
+//    public Button[][] getSquares() {
+//        return squares;
+//    }
 
-    public GridPane initBoard() {
-        GridPane grid = new GridPane();
-
+    private void initStartingPositions() {
         for (int row = 0; row < SIZE; row++) {
             for (int col = 0; col < SIZE; col++) {
-                Button cell = new Button();
-                cell.setMinSize(50, 50);
+                // W warcabach pionki stoją tylko na ciemnych polach
+                if ((row + col) % 2 != 0) {
+                    int piecesRows = (SIZE / 2) - 1; // 3 rzędy
 
-                if ((row + col) % 2 == 0) {
-                    cell.setStyle("-fx-background-color: WHITE;");
-                } else {
-                    cell.setStyle("-fx-background-color: RED;");
-
-                    int piecesRows = (SIZE / 2) - 1;
                     if (row < piecesRows) {
-                        Piece blackPiece = new Piece(Piece.PieceType.BLACK);
-                        cell.setGraphic(blackPiece.getImageView());
-                        cell.setUserData(blackPiece);
+                        squares[row][col] = new Piece(Piece.PieceType.BLACK);
                     } else if (row >= SIZE - piecesRows) {
-                        Piece whitePiece = new Piece(Piece.PieceType.WHITE);
-                        cell.setGraphic(whitePiece.getImageView());
-                        cell.setUserData(whitePiece);
+                        squares[row][col] = new Piece(Piece.PieceType.WHITE);
                     }
-                    move.handleMove(cell, row, col);
                 }
-
-                squares[row][col] = cell;
-                grid.add(cell, col, row);
             }
         }
-        return grid;
+    }
+
+    // Zwraca całą tablicę (przyda się później)
+    public Piece[][] getSquares() {
+        return squares;
+    }
+    // Pobiera pionka z konkretnego pola (bezpieczna metoda)
+    public Piece getPiece(int row, int col) {
+        if (row < 0 || row >= SIZE || col < 0 || col >= SIZE) {
+            return null;
+        }
+        return squares[row][col];
+    }
+    // Ustawia pionka na konkretnym polu
+    public void setPiece(int row, int col, Piece piece) {
+        if (row >= 0 && row < SIZE && col >= 0 && col < SIZE) {
+            squares[row][col] = piece;
+        }
+    }
+    // Fizyczne przestawienie pionka w tablicy (symulacja ruchu)
+    public void movePiece(int fromRow, int fromCol, int toRow, int toCol) {
+        squares[toRow][toCol] = squares[fromRow][fromCol];
+        squares[fromRow][fromCol] = null;
+    }
+    // Usuwanie zbitego pionka
+    public void removePiece(int row, int col) {
+        squares[row][col] = null;
     }
 }
