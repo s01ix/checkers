@@ -19,7 +19,7 @@ public class Main extends Application {
         BoardView boardView = new BoardView(boardModel);
 
         //Tryb sieciowy
-        NetworkClient networkClient = new NetworkClient("localhost", 12345, gameManager, boardView);
+        NetworkClient networkClient = new NetworkClient(12345, gameManager, boardView);
         new Move(gameManager, boardView, networkClient);
         primaryStage.setTitle("Warcaby Sieciowe - " + (networkClient.getMyColor() == null ? "Łączenie..." : networkClient.getMyColor()));
 
