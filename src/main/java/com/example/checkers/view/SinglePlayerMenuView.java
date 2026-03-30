@@ -1,12 +1,10 @@
-package com.example.checkers;
+package com.example.checkers.view;
 
 import com.example.checkers.controller.MoveSinglePlayer;
 import com.example.checkers.model.Board;
 import com.example.checkers.model.ComputerPlayer;
 import com.example.checkers.model.GameManager;
 import com.example.checkers.model.Piece;
-import com.example.checkers.view.BoardView;
-import javafx.application.Application;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
@@ -15,17 +13,19 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
-public class MainSinglePlayer extends Application {
+public class SinglePlayerMenuView {
 
-    private Stage primaryStage;
+    private final Stage stage;
+    private final String username;
+    private final String password;
 
-    @Override
-    public void start(Stage primaryStage) {
-        this.primaryStage = primaryStage;
-        showDifficultyMenu();
+    public SinglePlayerMenuView(Stage stage, String username, String password) {
+        this.stage = stage;
+        this.username = username;
+        this.password = password;
     }
 
-    private void showDifficultyMenu() {
+    public void show() {
         VBox root = new VBox(20);
         root.setAlignment(Pos.CENTER);
         root.setStyle("-fx-background-color: #2c3e50; -fx-padding: 30;");
@@ -43,14 +43,13 @@ public class MainSinglePlayer extends Application {
         easyBtn.setOnAction(e -> startGame(ComputerPlayer.Difficulty.EASY));
         mediumBtn.setOnAction(e -> startGame(ComputerPlayer.Difficulty.MEDIUM));
         hardBtn.setOnAction(e -> startGame(ComputerPlayer.Difficulty.HARD));
-
         buttonBox.getChildren().addAll(easyBtn, mediumBtn, hardBtn);
         root.getChildren().addAll(titleLabel, buttonBox);
 
-        Scene menuScene = new Scene(root, 450, 200);
-        primaryStage.setTitle("Warcaby - Menu");
-        primaryStage.setScene(menuScene);
-        primaryStage.show();
+        Scene menuScene = new Scene(root, 450, 250);
+        stage.setTitle("Warcaby - Gra z komputerem");
+        stage.setScene(menuScene);
+        stage.show();
     }
 
     private void startGame(ComputerPlayer.Difficulty difficulty) {
@@ -60,9 +59,8 @@ public class MainSinglePlayer extends Application {
         ComputerPlayer ai = new ComputerPlayer(gm, board, Piece.PieceType.BLACK, difficulty);
         new MoveSinglePlayer(gm, view, ai);
 
-        primaryStage.setTitle("Warcaby offline - vs Komputer [" + difficulty + "]");
-        primaryStage.setScene(new Scene(view.getGridPane()));
-        primaryStage.setOnCloseRequest(e -> System.exit(0));
+        stage.setTitle("Warcaby offline - vs Komputer [" + difficulty + "]");
+        stage.setScene(new Scene(view.getGridPane()));
     }
 
     private Button createStyledButton(String text, String color) {
@@ -70,9 +68,5 @@ public class MainSinglePlayer extends Application {
         btn.setPrefSize(100, 40);
         btn.setStyle("-fx-background-color: " + color + "; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand; -fx-background-radius: 5;");
         return btn;
-    }
-
-    public static void main(String[] args) {
-        launch(args);
     }
 }
