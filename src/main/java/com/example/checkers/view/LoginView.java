@@ -1,11 +1,10 @@
 package com.example.checkers.view;
 
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.PasswordField;
-import javafx.scene.control.TextField;
-import javafx.scene.layout.VBox;
+import javafx.scene.control.*;
+import javafx.scene.layout.*;
 import javafx.stage.Stage;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -21,16 +20,46 @@ public class LoginView {
     }
 
     public void show() {
-        VBox root = new VBox();
-        Label titleLabel = new Label("Warcaby - Logowanie");
+        //Główny kontener z tłem
+        StackPane root = new StackPane();
+        try {
+            String imagePath = getClass().getResource("/com/example/checkers/pieces/background.png").toExternalForm();
+            root.setStyle("-fx-background-image: url('" + imagePath + "'); " +
+                    "-fx-background-size: cover; " +
+                    "-fx-background-position: center;");
+        } catch (Exception e) {
+            System.err.println("Nie udało się załadować tła: " + e.getMessage());
+            root.setStyle("-fx-background-color: #4b2e1e;"); // Rezerwowy kolor (brązowy)
+        }
+
+        //Kontener na elementy
+        VBox menuBox = new VBox(15);
+        menuBox.setAlignment(Pos.CENTER);
+        menuBox.setMaxWidth(350);
+        menuBox.setPadding(new Insets(20));
+        //Napis
+        Label titleLabel = new Label("LOGOWANIE");
+        titleLabel.setStyle("-fx-font-size: 32px; -fx-font-weight: bold; -fx-text-fill: white; -fx-padding: 0 0 10 0;");
+
         TextField usernameField = new TextField();
         usernameField.setPromptText("Wpisz swój nick");
+        styleInput(usernameField);
+
         PasswordField passwordField = new PasswordField();
         passwordField.setPromptText("Wpisz hasło");
-        Button loginButton = new Button("Zaloguj");
-        Button registerButton = new Button("Zarejestruj");
-        Label statusLabel = new Label("");
+        styleInput(passwordField);
 
+        //Przyciski
+        Button loginButton = new Button("ZALOGUJ");
+        styleGreenButton(loginButton);
+
+        Button registerButton = new Button("ZAREJESTRUJ");
+        styleGreenButton(registerButton);
+
+        Label statusLabel = new Label("");
+        statusLabel.setStyle("-fx-text-fill: #ff6666; -fx-font-weight: bold;");
+
+        //Logika
         registerButton.setOnAction(e -> statusLabel.setText("Funkcja testowa, nie działa narazie"));
 
         loginButton.setOnAction(e -> {
@@ -60,9 +89,7 @@ public class LoginView {
                             serverError = response.substring("LOGIN_FAILED ".length());
                             break;
                         }
-
-                    } catch (Exception ex) {
-                    }
+                    } catch (Exception ex) { }
                 }
 
                 boolean finalSuccess = authSuccess;
@@ -80,11 +107,37 @@ public class LoginView {
             }).start();
         });
 
-        root.getChildren().addAll(titleLabel, usernameField, passwordField, loginButton, registerButton, statusLabel);
+        // Dodawanie elementów do VBox
+        menuBox.getChildren().addAll(titleLabel, usernameField, passwordField, loginButton, registerButton, statusLabel);
 
-        Scene scene = new Scene(root, 300, 300);
+        // Dodawanie VBox do StackPane
+        root.getChildren().add(menuBox);
+
+        Scene scene = new Scene(root, 1000, 600);
         stage.setScene(scene);
+        stage.setTitle("Warcaby - Logowanie");
         stage.show();
+    }
+
+    //Metody stylizujące
+    private void styleInput(Control field) {
+        field.setStyle("-fx-background-radius: 10; -fx-padding: 8; -fx-font-size: 14px;");
+    }
+
+    private void styleGreenButton(Button btn) {
+        btn.setMinWidth(200);
+        btn.setStyle(
+                "-fx-background-color: #2e7d32; " + // Ciemny zielony
+                        "-fx-text-fill: white; " +
+                        "-fx-font-weight: bold; " +
+                        "-fx-font-size: 16px; " +
+                        "-fx-background-radius: 15; " +
+                        "-fx-cursor: hand;"
+        );
+
+        //Efekt po najechaniu
+        btn.setOnMouseEntered(e -> btn.setStyle(btn.getStyle() + "-fx-background-color: #388e3c;"));
+        btn.setOnMouseExited(e -> btn.setStyle(btn.getStyle() + "-fx-background-color: #2e7d32;"));
     }
 
     public static List<String> getArpIps() {

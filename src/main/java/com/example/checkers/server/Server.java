@@ -1,39 +1,23 @@
 package com.example.checkers.server;
 
+import com.example.checkers.server.Room;
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 public class Server {
     private static final int PORT = 12345;
-    private static final BlockingQueue<Socket> waitingPlayers = new LinkedBlockingQueue<>();
+    private static final java.util.List<Room> activeRooms = java.util.Collections.synchronizedList(new java.util.ArrayList<>());
+    private static int roomIdCounter = 1;
 
     public static void main(String[] args){
         System.out.println("=====Serwer warcaby startuje=====");
-
-        new Thread(() -> {
-            while (true) {
-                try {
-                    Socket player1 = waitingPlayers.take();
-                    PrintWriter out1 = new PrintWriter(player1.getOutputStream(), true);
-                    out1.println("CONNECTED WHITE");
-
-                    Socket player2 = waitingPlayers.take();
-                    PrintWriter out2 = new PrintWriter(player2.getOutputStream(), true);
-                    out2.println("CONNECTED BLACK");
-
-                    System.out.println("Mamy komplet graczy! Tworzę nową sesję gry...");
-                    GameSession session = new GameSession(player1, player2);
-                    session.start();
-                } catch (Exception e) {
-                    System.err.println("Błąd serwera: " + e.getMessage());
-                    e.printStackTrace();}
-            }
-        }).start();
 
         try (ServerSocket serverSocket = new ServerSocket(PORT)){
             System.out.println("Serwer nasłuchuje na porcie: " + PORT);
@@ -50,40 +34,79 @@ public class Server {
 
     private static void handleClientAuth(Socket socket) {
         try {
-            System.out.println("Próba połączenia z IP: " + socket.getInetAddress());
-            java.io.BufferedReader in = new java.io.BufferedReader(new InputStreamReader(socket.getInputStream()));
+            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+            String username = "Anonim";
 
-            String authMsg = in.readLine();
-            if (authMsg != null) {
-                if (authMsg.startsWith("LOGIN ")) { // Samo sprawdzenie loginu z ekranu LoginView
-                    String[] parts = authMsg.split(" ");
+            String line;
+            // Pętla trzymająca gracza na serwerze
+            while ((line = in.readLine()) != null) {
+                System.out.println("Odebrano: " + line);
+
+                // LOGOWANIE
+                if (line.startsWith("LOGIN ")) {
+                    String[] parts = line.split(" ");
                     if (parts.length == 3 && parts[1].equals(parts[2])) {
+                        username = parts[1];
                         out.println("LOGIN_SUCCESS");
                     } else {
-                        out.println("LOGIN_FAILED Hasło musi być takie samo jak login");
+                        out.println("LOGIN_FAILED Hasło niezgodne");
+                        return;
                     }
-                    socket.close();
-                } else if (authMsg.startsWith("JOIN ")) {
-                    String[] parts = authMsg.split(" ");
-                    if (parts.length == 3 && parts[1].equals(parts[2])) {
-                        out.println("LOGIN_SUCCESS");
-                        System.out.println("Gracz dołącza do kolejki gry: " + parts[1]);
-                        waitingPlayers.put(socket);
-                    } else {
-                        out.println("LOGIN_FAILED Odrzucono sesje autoryzacji gry");
-                        socket.close();
-                    }
-                } else {
-                    out.println("LOGIN_FAILED Nieznana komenda");
-                    socket.close();
                 }
-            } else {
-                socket.close();
+
+                // TWORZENIE POKOJU
+                else if (line.startsWith("CREATE_ROOM")) {
+                    Room newRoom = new Room(username, socket, out);
+                    activeRooms.add(newRoom);
+                    out.println("ROOM_CREATED " + newRoom.getId());
+                    System.out.println("Gracz " + username + " stworzył pokój. Czekam...");
+                }
+                // PRZYGOTOWANIE I WYSŁANIE DANYCH
+                else if (line.equals("GET_ROOMS")) {
+                    StringBuilder sb = new StringBuilder("ROOM_LIST ");
+                    synchronized (activeRooms) {
+                        for (Room r : activeRooms) {
+                            if (!r.isFull()) {
+                                sb.append(r.getId()).append(":").append(r.getName()).append(";");
+                            }
+                        }
+                    }
+                    out.println(sb.toString());
+                }
+                else if (line.startsWith("JOIN_ROOM ")) {
+                    int id = Integer.parseInt(line.split(" ")[1]);
+                    Room target = null;
+                    synchronized (activeRooms) {
+                        for (Room r : activeRooms) {
+                            if (r.getId() == id && !r.isFull()) {
+                                target = r;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (target != null) {
+                        target.setPlayer2(socket);
+
+                        // POBIERAMY STRUMIEŃ WYJŚCIOWY HOSTA
+                        PrintWriter hostOut = new PrintWriter(target.getPlayer1().getOutputStream(), true);
+
+                        // WYSYŁAMY START DO OBU GRACZY JEDNOCZEŚNIE
+                        target.getHostOut().println("CONNECTED WHITE");
+                        out.println("CONNECTED BLACK");
+
+                        System.out.println("Gra startuje: " + target.getName() + " vs " + username);
+
+                        // START SESJI
+                        new GameSession(target.getPlayer1(), socket).start();
+                        activeRooms.remove(target);
+                        return; // Koniec obsługi lobby dla dołączającego
+                    }
+                }
             }
         } catch (Exception e) {
             System.err.println("Błąd klienta: " + e.getMessage());
-            try { socket.close(); } catch (IOException ignored) {}
         }
     }
 }

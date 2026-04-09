@@ -5,11 +5,20 @@ import com.example.checkers.model.Board;
 import com.example.checkers.model.GameManager;
 import com.example.checkers.network.NetworkClient;
 import javafx.application.Platform;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
+
+import java.net.Socket;
+import java.io.PrintWriter;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.IOException;
 
 public class MainMenuView {
     private final Stage stage;
@@ -23,44 +32,71 @@ public class MainMenuView {
     }
 
     public void show() {
-        VBox root = new VBox(20);
-        Button singlePlayerBtn = new Button("Gra z komputerem");
-        Button multiPlayerBtn = new Button("Gra wieloosobowa");
-        Button backBtn = new Button("Wyloguj");
+        //Główny kontener z tłem
+        StackPane root = new StackPane();
+        try {
+            String imagePath = getClass().getResource("/com/example/checkers/pieces/background.png").toExternalForm();
+            root.setStyle("-fx-background-image: url('" + imagePath + "'); " +
+                    "-fx-background-size: cover; " +
+                    "-fx-background-position: center;");
+        } catch (Exception e) {
+            root.setStyle("-fx-background-color: #4b2e1e;");
+        }
+
+        //Kontener z elementami
+        VBox menuBox = new VBox(20);
+        menuBox.setAlignment(Pos.CENTER);
+        menuBox.setMaxWidth(400);
+        menuBox.setPadding(new Insets(30));
+        //Napis
+        Label titleLabel = new Label("WARCABY");
+        titleLabel.setStyle("-fx-font-size: 48px; -fx-font-weight: bold; -fx-text-fill: white; -fx-padding: 0 0 20 0;");
+        //Przyciski
+        Button singlePlayerBtn = new Button("GRA Z KOMPUTEREM");
+        styleGreenButton(singlePlayerBtn);
+
+        Button multiPlayerBtn = new Button("GRA WIELOOSOBOWA");
+        styleGreenButton(multiPlayerBtn);
+
+        Button backBtn = new Button("WYLOGUJ");
+        styleSecondaryButton(backBtn);
 
         Label statusLabel = new Label("");
+        statusLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold; -fx-text-alignment: center;");
+        statusLabel.setWrapText(true);
 
+        //Logika przycisków
         singlePlayerBtn.setOnAction(e -> {
             SinglePlayerMenuView singlePlayerMenu = new SinglePlayerMenuView(stage, username, password);
             singlePlayerMenu.show();
         });
 
         multiPlayerBtn.setOnAction(e -> {
-            statusLabel.setText("Szukanie serwera i łączenie...");
-            multiPlayerBtn.setDisable(true);
-            singlePlayerBtn.setDisable(true);
+            statusLabel.setText("Łączenie z serwerem...");
 
             new Thread(() -> {
-                Board boardModel = new Board();
-                GameManager gameManager = new GameManager(boardModel);
-                BoardView boardView = new BoardView(boardModel);
-                NetworkClient networkClient = new NetworkClient(12345, gameManager, boardView, username, password);
-                Platform.runLater(() -> {
-                    if (networkClient.getMyColor() != null) {
-                        new Move(gameManager, boardView, networkClient);
-                        Scene scene = new Scene(boardView.getGridPane());
-                        stage.setScene(scene);
-                        stage.setTitle("Warcaby Sieciowe - " + username + " (" + networkClient.getMyColor() + ")");
-                    } else if (networkClient.getErrorMessage() != null) {
-                        statusLabel.setText("Odpowedź z serwera: \n" + networkClient.getErrorMessage());
-                        multiPlayerBtn.setDisable(false);
-                        singlePlayerBtn.setDisable(false);
+                try {
+                    //Łączenie się z serwerem
+                    Socket socket = new Socket("127.0.0.1", 12345);
+                    PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+                    BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+
+                    //Logowanie się do lobby
+                    out.println("LOGIN " + username + " " + password);
+                    String response = in.readLine();
+
+                    if ("LOGIN_SUCCESS".equals(response)) {
+                        Platform.runLater(() -> {
+                            //Przechodzenie do Lobby, przekazując aktywne połączenie
+                            LobbyView lobby = new LobbyView(stage, username, out, in);
+                            lobby.show();
+                        });
                     } else {
-                        statusLabel.setText("Błąd serwera: Nie znaleziono serwera!");
-                        multiPlayerBtn.setDisable(false);
-                        singlePlayerBtn.setDisable(false);
+                        Platform.runLater(() -> statusLabel.setText("Błąd logowania!"));
                     }
-                });
+                } catch (IOException ex) {
+                    Platform.runLater(() -> statusLabel.setText("Nie znaleziono serwera!"));
+                }
             }).start();
         });
 
@@ -68,11 +104,39 @@ public class MainMenuView {
             new LoginView(stage).show();
         });
 
-        root.getChildren().addAll(singlePlayerBtn, multiPlayerBtn, backBtn, statusLabel);
+        //Dodawanie do widoki
+        menuBox.getChildren().addAll(titleLabel, singlePlayerBtn, multiPlayerBtn, backBtn, statusLabel);
+        root.getChildren().add(menuBox);
 
-        Scene scene = new Scene(root, 400, 400);
+        Scene scene = new Scene(root, 1000, 600);
         stage.setScene(scene);
         stage.setTitle("Warcaby - Menu Główne");
         stage.show();
+    }
+
+    //Metody stylizujące
+    private void styleGreenButton(Button btn) {
+        btn.setMinWidth(280);
+        btn.setStyle(
+                "-fx-background-color: #2e7d32; " +
+                        "-fx-text-fill: white; " +
+                        "-fx-font-weight: bold; " +
+                        "-fx-font-size: 18px; " +
+                        "-fx-background-radius: 15; " +
+                        "-fx-cursor: hand;"
+        );
+        btn.setOnMouseEntered(e -> btn.setStyle(btn.getStyle() + "-fx-background-color: #388e3c;"));
+        btn.setOnMouseExited(e -> btn.setStyle(btn.getStyle().replace("-fx-background-color: #388e3c;", "")));
+    }
+
+    private void styleSecondaryButton(Button btn) {
+        btn.setMinWidth(150);
+        btn.setStyle(
+                "-fx-background-color: #1b5e20; " +
+                        "-fx-text-fill: white; " +
+                        "-fx-font-size: 14px; " +
+                        "-fx-background-radius: 10; " +
+                        "-fx-cursor: hand;"
+        );
     }
 }

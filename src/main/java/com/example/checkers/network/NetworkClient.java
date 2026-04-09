@@ -20,55 +20,22 @@ public class NetworkClient {
     private Piece.PieceType myColor;
     private String errorMessage;
 
-    public NetworkClient(int port, GameManager localGameManager, BoardView boardView, String username, String password) {
-        System.out.println("Szukanie serwera...");
-        List<String> ipsToTry = getArpIps();
-        ipsToTry.add(0, "127.0.0.1");
+    public NetworkClient(PrintWriter out, BufferedReader in, GameManager localGameManager, BoardView boardView, String username, String colorStr) {
+        this.errorMessage = null;
 
-        boolean connected = false;
-
-        for (String ip : ipsToTry) {
-            try {
-                System.out.println("Próba połączenia z " + ip + "...");
-                socket = new Socket();
-                socket.connect(new InetSocketAddress(ip, port), 5000);
-
-                PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-                BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-
-                // Wysyłamy prośbę o dołączenie do gry (właściwe rozegranie meczu)
-                out.println("JOIN " + username + " " + password);
-                String loginResponse = in.readLine();
-
-                if (loginResponse != null && loginResponse.startsWith("LOGIN_FAILED ")) {
-                    errorMessage = loginResponse.substring("LOGIN_FAILED ".length());
-                    socket.close();
-                    break;
-                } else if ("LOGIN_SUCCESS".equals(loginResponse)) {
-                    String colorMessage = in.readLine();
-                    if ("CONNECTED WHITE".equals(colorMessage)) {
-                        myColor = Piece.PieceType.WHITE;
-                    } else if ("CONNECTED BLACK".equals(colorMessage)) {
-                        myColor = Piece.PieceType.BLACK;
-                    }
-
-                    sender = new Sender(out);
-                    listener = new Listener(in, localGameManager, boardView);
-                    new Thread(listener).start();
-
-                    connected = true;
-                    break;
-                } else {
-                    socket.close();
-                }
-
-            } catch (IOException e) {
-            }
+        // Ustalamy kolor na podstawie tego, co przysłał serwer do Lobby
+        if ("WHITE".equalsIgnoreCase(colorStr)) {
+            this.myColor = Piece.PieceType.WHITE;
+        } else {
+            this.myColor = Piece.PieceType.BLACK;
         }
+        // Inicjalizujemy nadajnik i odbiornik na istniejących strumieniach
+        this.sender = new Sender(out);
+        this.listener = new Listener(in, localGameManager, boardView);
+        // Odpalamy słuchanie ruchów przeciwnika
+        new Thread(this.listener).start();
 
-        if (!connected && errorMessage == null) {
-            System.err.println("Nie udało się znaleźć serwera.");
-        }
+        System.out.println("NetworkClient przejął połączenie. Kolor: " + myColor);
     }
 
     public String getErrorMessage() {
