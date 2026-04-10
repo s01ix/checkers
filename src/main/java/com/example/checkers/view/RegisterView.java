@@ -23,7 +23,6 @@ public class RegisterView {
 
     public void show() {
         StackPane root = new StackPane();
-        // Tło spójne z resztą gry
         String imagePath = getClass().getResource("/com/example/checkers/pieces/background.png").toExternalForm();
         root.setStyle("-fx-background-image: url('" + imagePath + "'); -fx-background-size: cover;");
 
@@ -31,8 +30,6 @@ public class RegisterView {
         layout.setAlignment(Pos.CENTER);
         layout.setPadding(new Insets(50));
         layout.setMaxWidth(400);
-        // Opcjonalnie: lekki przyciemniany prostokąt pod formularzem
-        //layout.setStyle("-fx-background-color: rgba(0,0,0,0.6); -fx-background-radius: 20;");
 
         Label title = new Label("REJESTRACJA NOWEGO KONTA");
         title.setStyle("-fx-font-size: 24px; -fx-text-fill: white; -fx-font-weight: bold;");
@@ -50,12 +47,11 @@ public class RegisterView {
         confirmPassField.setStyle("-fx-background-radius: 10; -fx-padding: 10;");
 
         Button registerBtn = new Button("ZAREJESTRUJ MNIE");
-        styleButton(registerBtn, "#2e7d32"); // Zielony
+        styleButton(registerBtn, "#2e7d32");
 
         Button backBtn = new Button("POWRÓT DO LOGOWANIA");
-        styleButton(backBtn, "#d32f2f"); // Czerwony
+        styleButton(backBtn, "#d32f2f");
 
-        // LOGIKA REJESTRACJI
         registerBtn.setOnAction(e -> {
             String user = loginField.getText();
             String pass = passField.getText();
@@ -74,7 +70,6 @@ public class RegisterView {
                 return;
             }
 
-            // Wysłanie komendy do serwera
             out.println("REGISTER " + user + " " + pass);
 
             new Thread(() -> {
@@ -83,7 +78,6 @@ public class RegisterView {
                     if ("REGISTER_SUCCESS".equals(response)) {
                         Platform.runLater(() -> {
                             showAlert("Sukces", "Konto utworzone pomyślnie! Możesz się zalogować.", Alert.AlertType.INFORMATION);
-                            // Powrót do logowania
                             new LoginView(stage, out, in).show();
                         });
                     } else {
@@ -95,13 +89,18 @@ public class RegisterView {
             }).start();
         });
 
-        // POWRÓT
         backBtn.setOnAction(e -> new LoginView(stage, out, in).show());
 
         layout.getChildren().addAll(title, loginField, passField, confirmPassField, registerBtn, backBtn);
         root.getChildren().add(layout);
 
-        stage.setScene(new Scene(root, 1000, 600));
+        // NAPRAWA SKALOWANIA
+        if (stage.getScene() == null) {
+            stage.setScene(new Scene(root, 1000, 600));
+        } else {
+            stage.getScene().setRoot(root);
+        }
+
         stage.setTitle("Warcaby Online - Rejestracja");
     }
 

@@ -2,19 +2,41 @@ package com.example.checkers.view;
 
 import com.example.checkers.model.Board;
 import com.example.checkers.model.Piece;
+import javafx.beans.binding.Bindings;
 import javafx.scene.control.Button;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.RowConstraints;
+import javafx.scene.layout.StackPane;
+
 import java.io.InputStream;
 
 public class BoardView {
     private final Board boardModel;
     private final GridPane gridPane;
+    private final StackPane rootContainer;
     private final Button[][] buttons = new Button[Board.SIZE][Board.SIZE];
     private boolean isFlipped = false;
 
-    // Pomocnicza metoda do ładowania obrazków
+    public BoardView(Board boardModel) {
+        this.boardModel = boardModel;
+        this.gridPane = new GridPane();
+        this.rootContainer = new StackPane();
+
+        this.rootContainer.setStyle("-fx-background-color: #4b2e1e;");
+        this.gridPane.setStyle("-fx-alignment: center;");
+
+        // skalowanie
+        gridPane.maxWidthProperty().bind(Bindings.min(rootContainer.widthProperty(), rootContainer.heightProperty()).subtract(40));
+        gridPane.maxHeightProperty().bind(Bindings.min(rootContainer.widthProperty(), rootContainer.heightProperty()).subtract(40));
+
+        rootContainer.getChildren().add(gridPane);
+
+        initializeBoardUI();
+    }
+
     private ImageView createPieceImageView(Piece piece) {
         String path = "/com/example/checkers/pieces/";
         if (piece.getType() == Piece.PieceType.WHITE) {
@@ -30,17 +52,18 @@ public class BoardView {
         }
 
         ImageView iv = new ImageView(new Image(stream));
-        iv.setFitWidth(50);
-        iv.setFitHeight(50);
         iv.setPreserveRatio(true);
 
-        if(isFlipped){
+
+        iv.fitWidthProperty().bind(gridPane.widthProperty().divide(Board.SIZE).multiply(0.75));
+        iv.fitHeightProperty().bind(gridPane.heightProperty().divide(Board.SIZE).multiply(0.75));
+
+        if (isFlipped) {
             iv.setRotate(180);
         }
         return iv;
     }
 
-    // Metoda, która odświeża cały wygląd planszy na podstawie modelu
     public void updateView() {
         for (int row = 0; row < Board.SIZE; row++) {
             for (int col = 0; col < Board.SIZE; col++) {
@@ -55,21 +78,33 @@ public class BoardView {
     }
 
     private void initializeBoardUI() {
+        // skalowanie procentowe
+        for (int i = 0; i < Board.SIZE; i++) {
+            ColumnConstraints colConst = new ColumnConstraints();
+            colConst.setPercentWidth(100.0 / Board.SIZE);
+            gridPane.getColumnConstraints().add(colConst);
+
+            RowConstraints rowConst = new RowConstraints();
+            rowConst.setPercentHeight(100.0 / Board.SIZE);
+            gridPane.getRowConstraints().add(rowConst);
+        }
+
         for (int row = 0; row < Board.SIZE; row++) {
             for (int col = 0; col < Board.SIZE; col++) {
                 Button cell = new Button();
-                cell.setMinSize(70, 70); // Trochę większe pola
+
+                // wypelnienie 100% komorki
+                cell.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 
                 String colorStyle = ((row + col) % 2 == 0) ? "#f0d9b5" : "#b58863";
                 String baseStyle = "-fx-background-color: " + colorStyle + "; " +
-                        "-fx-background-insets: 0; " + // Usuwa białe przerwy
+                        "-fx-background-insets: 0; " +
                         "-fx-background-radius: 0; " +
-                        "-fx-focus-color: transparent; " + // Usuwa niebieską obwódkę focusa
+                        "-fx-focus-color: transparent; " +
                         "-fx-faint-focus-color: transparent;";
 
                 cell.setStyle(baseStyle);
 
-                //Efekty po najechaniu
                 cell.setOnMousePressed(e -> cell.setStyle(baseStyle + "-fx-background-color: #f5f682;"));
                 cell.setOnMouseReleased(e -> cell.setStyle(baseStyle));
 
@@ -77,14 +112,11 @@ public class BoardView {
                 gridPane.add(cell, col, row);
             }
         }
-        updateView(); // Rysujemy pionki na start
+        updateView();
     }
 
-    public BoardView(Board boardModel) {
-        this.boardModel = boardModel;
-        this.gridPane = new GridPane();
-        this.gridPane.setStyle("-fx-alignment: center;");
-        initializeBoardUI();
+    public StackPane getRootContainer() {
+        return rootContainer;
     }
 
     public GridPane getGridPane() {
@@ -95,8 +127,7 @@ public class BoardView {
         return buttons;
     }
 
-    //Obrót planszy dla czarnego pionka
-    public void flipBoard(){
+    public void flipBoard() {
         gridPane.setRotate(180);
         this.isFlipped = true;
         updateView();

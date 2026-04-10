@@ -28,7 +28,6 @@ public class SinglePlayerMenuView {
     }
 
     public void show() {
-        //Główny kontener z tłem
         StackPane root = new StackPane();
         try {
             String imagePath = getClass().getResource("/com/example/checkers/pieces/background.png").toExternalForm();
@@ -39,17 +38,14 @@ public class SinglePlayerMenuView {
             root.setStyle("-fx-background-color: #4b2e1e;");
         }
 
-        //Kontener na elementy
         VBox menuBox = new VBox(25);
         menuBox.setAlignment(Pos.CENTER);
         menuBox.setMaxWidth(500);
         menuBox.setPadding(new Insets(40));
 
-        //Napis
         Label titleLabel = new Label("POZIOM TRUDNOŚCI");
         titleLabel.setStyle("-fx-font-size: 30px; -fx-font-weight: bold; -fx-text-fill: white;");
 
-        //Przyciski
         HBox buttonBox = new HBox(15);
         buttonBox.setAlignment(Pos.CENTER);
 
@@ -63,7 +59,6 @@ public class SinglePlayerMenuView {
 
         buttonBox.getChildren().addAll(easyBtn, mediumBtn, hardBtn);
 
-        // Przycisk powrotu
         Button backBtn = createStyledMenuButton("POWRÓT");
         styleSecondaryButton(backBtn);
         backBtn.setOnAction(e -> new MainMenuView(stage, username, password).show());
@@ -71,9 +66,14 @@ public class SinglePlayerMenuView {
         menuBox.getChildren().addAll(titleLabel, buttonBox, backBtn);
         root.getChildren().add(menuBox);
 
-        Scene scene = new Scene(root, 1000, 600);
+        // NAPRAWA SKALOWANIA
+        if (stage.getScene() == null) {
+            stage.setScene(new Scene(root, 1000, 600));
+        } else {
+            stage.getScene().setRoot(root);
+        }
+
         stage.setTitle("Warcaby - Poziom Trudności");
-        stage.setScene(scene);
         stage.show();
     }
 
@@ -85,10 +85,15 @@ public class SinglePlayerMenuView {
         new MoveSinglePlayer(gm, view, ai);
 
         stage.setTitle("Warcaby offline - vs Komputer [" + difficulty + "]");
-        stage.setScene(new Scene(view.getGridPane()));
+
+        // Zamiast generować nowy Scene z sztywnym 800x800, podmieniamy zawartość
+        if (stage.getScene() == null) {
+            stage.setScene(new Scene(view.getRootContainer(), 800, 800));
+        } else {
+            stage.getScene().setRoot(view.getRootContainer());
+        }
     }
 
-    //Metoda stylizująca
     private Button createStyledMenuButton(String text) {
         Button btn = new Button(text);
         btn.setPrefSize(120, 60);
@@ -102,7 +107,6 @@ public class SinglePlayerMenuView {
                         "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.4), 5, 0, 0, 2);"
         );
 
-        //Efekt po najechaniu
         btn.setOnMouseEntered(e -> btn.setStyle(btn.getStyle() + "-fx-brightness: 1.2; -fx-scale-x: 1.05; -fx-scale-y: 1.05;"));
         btn.setOnMouseExited(e -> btn.setStyle(btn.getStyle().replace("-fx-brightness: 1.2; -fx-scale-x: 1.05; -fx-scale-y: 1.05;", "")));
 

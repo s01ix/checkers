@@ -27,7 +27,6 @@ public class LoginView {
         this.stage = stage;
     }
     public void show() {
-        //Główny kontener z tłem
         StackPane root = new StackPane();
         try {
             String imagePath = getClass().getResource("/com/example/checkers/pieces/background.png").toExternalForm();
@@ -36,15 +35,14 @@ public class LoginView {
                     "-fx-background-position: center;");
         } catch (Exception e) {
             System.err.println("Nie udało się załadować tła: " + e.getMessage());
-            root.setStyle("-fx-background-color: #4b2e1e;"); // Rezerwowy kolor (brązowy)
+            root.setStyle("-fx-background-color: #4b2e1e;");
         }
 
-        //Kontener na elementy
         VBox menuBox = new VBox(15);
         menuBox.setAlignment(Pos.CENTER);
         menuBox.setMaxWidth(350);
         menuBox.setPadding(new Insets(20));
-        //Napis
+
         Label titleLabel = new Label("LOGOWANIE");
         titleLabel.setStyle("-fx-font-size: 32px; -fx-font-weight: bold; -fx-text-fill: white; -fx-padding: 0 0 10 0;");
 
@@ -56,7 +54,6 @@ public class LoginView {
         passwordField.setPromptText("Wpisz hasło");
         styleInput(passwordField);
 
-        //Przyciski
         Button loginButton = new Button("ZALOGUJ");
         styleGreenButton(loginButton);
 
@@ -66,14 +63,10 @@ public class LoginView {
         Label statusLabel = new Label("");
         statusLabel.setStyle("-fx-text-fill: #FF3333; " + "-fx-font-weight: bold; " + "-fx-font-size: 14px; ");
 
-        //Logika
         registerButton.setOnAction(e -> {
-            // Jeśli out jest nullem, spróbuj się połączyć teraz
             if (this.out == null) {
                 connectToServer();
             }
-
-            // Sprawdź ponownie - jeśli nadal null (bo serwer wyłączony), nie otwieraj okna
             if (this.out != null) {
                 new RegisterView(stage, out, in).show();
             } else {
@@ -126,19 +119,19 @@ public class LoginView {
             }).start();
         });
 
-        // Dodawanie elementów do VBox
         menuBox.getChildren().addAll(titleLabel, usernameField, passwordField, loginButton, registerButton, statusLabel);
-
-        // Dodawanie VBox do StackPane
         root.getChildren().add(menuBox);
 
-        Scene scene = new Scene(root, 1000, 600);
-        stage.setScene(scene);
+        if (stage.getScene() == null) {
+            stage.setScene(new Scene(root, 1000, 600));
+        } else {
+            stage.getScene().setRoot(root);
+        }
+
         stage.setTitle("Warcaby - Logowanie");
         stage.show();
     }
 
-    //Metody stylizujące
     private void styleInput(Control field) {
         field.setStyle("-fx-background-radius: 10; -fx-padding: 8; -fx-font-size: 14px;");
     }
@@ -146,15 +139,13 @@ public class LoginView {
     private void styleGreenButton(Button btn) {
         btn.setMinWidth(200);
         btn.setStyle(
-                "-fx-background-color: #2e7d32; " + // Ciemny zielony
+                "-fx-background-color: #2e7d32; " +
                         "-fx-text-fill: white; " +
                         "-fx-font-weight: bold; " +
                         "-fx-font-size: 16px; " +
                         "-fx-background-radius: 15; " +
                         "-fx-cursor: hand;"
         );
-
-        //Efekt po najechaniu
         btn.setOnMouseEntered(e -> btn.setStyle(btn.getStyle() + "-fx-background-color: #388e3c;"));
         btn.setOnMouseExited(e -> btn.setStyle(btn.getStyle() + "-fx-background-color: #2e7d32;"));
     }
@@ -178,10 +169,9 @@ public class LoginView {
         }
         return ipAddresses;
     }
-    //Metoda do łączenia się
+
     private void connectToServer() {
         try {
-            // Upewnij się, że serwer jest uruchomiony na tym porcie!
             java.net.Socket socket = new java.net.Socket("127.0.0.1", 12345);
             this.out = new java.io.PrintWriter(socket.getOutputStream(), true);
             this.in = new java.io.BufferedReader(new java.io.InputStreamReader(socket.getInputStream()));

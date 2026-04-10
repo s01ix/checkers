@@ -41,7 +41,6 @@ public class LobbyView {
         Label title = new Label("LOBBY GIER");
         title.setStyle("-fx-font-size: 32px; -fx-text-fill: white; -fx-font-weight: bold;");
 
-        // Lista dostępnych pokoi
         ListView<String> roomList = new ListView<>();
         roomList.setPrefHeight(300);
         roomList.setStyle("-fx-background-radius: 10;");
@@ -63,7 +62,6 @@ public class LobbyView {
 
         controls.getChildren().addAll(createBtn, joinBtn, refreshBtn, backBtn);
 
-        //POWRÓT DO MENU
         backBtn.setOnAction(e -> {
             if(out != null){
                 out.println("LEAVE_LOBBY");
@@ -71,13 +69,11 @@ public class LobbyView {
             new MainMenuView(stage, username, out, in).show();
         });
 
-        //STWORZENIE POKOJU
         createBtn.setOnAction(e -> {
             new Thread(() -> {
                 try {
                     out.println("CREATE_ROOM");
 
-                    //Odbieranie powiadomienia
                     String roomCreatedMsg = in.readLine();
                     System.out.println("Otrzymano z serwera: " + roomCreatedMsg);
 
@@ -86,7 +82,6 @@ public class LobbyView {
                         createBtn.setDisable(true);
                     });
 
-                    //Czekanie na start gry
                     String response = in.readLine();
                     System.out.println("Otrzymano start gry: " + response);
 
@@ -97,7 +92,6 @@ public class LobbyView {
             }).start();
         });
 
-        //ODŚWIEŻANIE LISTY
         refreshBtn.setOnAction(e -> {
             new Thread(() -> {
                 out.println("GET_ROOMS");
@@ -123,19 +117,15 @@ public class LobbyView {
             if (selected != null) {
                 new Thread(() -> {
                     try {
-                        //Wyciągnie ID pokoju
                         String roomId = selected.split(":")[0];
 
-                        //Wysyłanie prośby do serwera
                         out.println("JOIN_ROOM " + roomId);
                         System.out.println("Wysłano prośbę o dołączenie do pokoju: " + roomId);
 
-                        //Czekanie na odpowiedź serwera
                         String response = in.readLine();
                         if (response != null && response.equals("CONNECTED BLACK")) {
                             System.out.println("Serwer zaakceptował dołączenie. Start gry!");
 
-                            //Przejście do planszy jako czarne
                             launchGame("BLACK");
                         } else {
                             System.out.println("Błąd dołączania: " + response);
@@ -147,18 +137,22 @@ public class LobbyView {
             }
         });
 
-
         layout.getChildren().addAll(title, roomList, controls);
         root.getChildren().add(layout);
 
-        stage.setScene(new Scene(root, 1000, 600));
+
+        if (stage.getScene() == null) {
+            stage.setScene(new Scene(root, 1000, 600));
+        } else {
+            stage.getScene().setRoot(root);
+        }
     }
 
     private void styleGreenButton(Button btn) {
         btn.setStyle("-fx-background-color: #2e7d32; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 10; -fx-cursor: hand;");
         btn.setPrefSize(150, 40);
     }
-    //Inicjalizacja i wyświetlenie widoku gry
+
     private void launchGame(String color) {
         Platform.runLater(() -> {
             Board boardModel = new Board();
@@ -173,7 +167,13 @@ public class LobbyView {
 
             Move Move = new Move(gameManager, boardView, networkClient);
 
-            stage.setScene(new Scene(boardView.getGridPane()));
+
+            if (stage.getScene() == null) {
+                stage.setScene(new Scene(boardView.getRootContainer(), 800, 800));
+            } else {
+                stage.getScene().setRoot(boardView.getRootContainer());
+            }
+
             stage.setTitle("Warcaby - Grasz jako " + color);
         });
     }

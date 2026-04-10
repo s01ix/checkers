@@ -1,9 +1,5 @@
 package com.example.checkers.view;
 
-import com.example.checkers.controller.Move;
-import com.example.checkers.model.Board;
-import com.example.checkers.model.GameManager;
-import com.example.checkers.network.NetworkClient;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -40,7 +36,6 @@ public class MainMenuView {
     }
 
     public void show() {
-        //Główny kontener z tłem
         StackPane root = new StackPane();
         try {
             String imagePath = getClass().getResource("/com/example/checkers/pieces/background.png").toExternalForm();
@@ -51,15 +46,14 @@ public class MainMenuView {
             root.setStyle("-fx-background-color: #4b2e1e;");
         }
 
-        //Kontener z elementami
         VBox menuBox = new VBox(20);
         menuBox.setAlignment(Pos.CENTER);
         menuBox.setMaxWidth(400);
         menuBox.setPadding(new Insets(30));
-        //Napis
+
         Label titleLabel = new Label("WARCABY");
         titleLabel.setStyle("-fx-font-size: 48px; -fx-font-weight: bold; -fx-text-fill: white; -fx-padding: 0 0 20 0;");
-        //Przyciski
+
         Button singlePlayerBtn = new Button("GRA Z KOMPUTEREM");
         styleGreenButton(singlePlayerBtn);
 
@@ -73,7 +67,6 @@ public class MainMenuView {
         statusLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold; -fx-text-alignment: center;");
         statusLabel.setWrapText(true);
 
-        //Logika przycisków
         singlePlayerBtn.setOnAction(e -> {
             SinglePlayerMenuView singlePlayerMenu = new SinglePlayerMenuView(stage, username, password);
             singlePlayerMenu.show();
@@ -84,18 +77,15 @@ public class MainMenuView {
 
             new Thread(() -> {
                 try {
-                    //Łączenie się z serwerem
                     Socket socket = new Socket("127.0.0.1", 12345);
                     PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
                     BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 
-                    //Logowanie się do lobby
                     out.println("LOGIN " + username + " " + password);
                     String response = in.readLine();
 
                     if ("LOGIN_SUCCESS".equals(response)) {
                         Platform.runLater(() -> {
-                            //Przechodzenie do Lobby, przekazując aktywne połączenie
                             LobbyView lobby = new LobbyView(stage, username, out, in);
                             lobby.show();
                         });
@@ -112,17 +102,20 @@ public class MainMenuView {
             new LoginView(stage).show();
         });
 
-        //Dodawanie do widoki
         menuBox.getChildren().addAll(titleLabel, singlePlayerBtn, multiPlayerBtn, backBtn, statusLabel);
         root.getChildren().add(menuBox);
 
-        Scene scene = new Scene(root, 1000, 600);
-        stage.setScene(scene);
+        // NAPRAWA SKALOWANIA
+        if (stage.getScene() == null) {
+            stage.setScene(new Scene(root, 1000, 600));
+        } else {
+            stage.getScene().setRoot(root);
+        }
+
         stage.setTitle("Warcaby - Menu Główne");
         stage.show();
     }
 
-    //Metody stylizujące
     private void styleGreenButton(Button btn) {
         btn.setMinWidth(280);
         btn.setStyle(
