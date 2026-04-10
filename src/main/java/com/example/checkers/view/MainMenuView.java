@@ -23,12 +23,20 @@ import java.io.IOException;
 public class MainMenuView {
     private final Stage stage;
     private final String username;
-    private final String password;
+    private String password;
+    private PrintWriter out;
+    private BufferedReader in;
 
     public MainMenuView(Stage stage, String username, String password) {
         this.stage = stage;
         this.username = username;
         this.password = password;
+    }
+    public MainMenuView(Stage stage, String username, PrintWriter out, BufferedReader in){
+        this.stage = stage;
+        this.username = username;
+        this.out = out;
+        this.in = in;
     }
 
     public void show() {

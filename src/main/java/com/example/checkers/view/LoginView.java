@@ -8,17 +8,24 @@ import javafx.scene.layout.*;
 import javafx.stage.Stage;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
 
 public class LoginView {
 
     private final Stage stage;
+    private PrintWriter out;
+    private BufferedReader in;
 
+    public LoginView(Stage stage, PrintWriter out, BufferedReader in) {
+        this.stage = stage;
+        this.out = out;
+        this.in = in;
+    }
     public LoginView(Stage stage) {
         this.stage = stage;
     }
-
     public void show() {
         //Główny kontener z tłem
         StackPane root = new StackPane();
@@ -57,10 +64,22 @@ public class LoginView {
         styleGreenButton(registerButton);
 
         Label statusLabel = new Label("");
-        statusLabel.setStyle("-fx-text-fill: #ff6666; -fx-font-weight: bold;");
+        statusLabel.setStyle("-fx-text-fill: #FF3333; " + "-fx-font-weight: bold; " + "-fx-font-size: 14px; ");
 
         //Logika
-        registerButton.setOnAction(e -> statusLabel.setText("Funkcja testowa, nie działa narazie"));
+        registerButton.setOnAction(e -> {
+            // Jeśli out jest nullem, spróbuj się połączyć teraz
+            if (this.out == null) {
+                connectToServer();
+            }
+
+            // Sprawdź ponownie - jeśli nadal null (bo serwer wyłączony), nie otwieraj okna
+            if (this.out != null) {
+                new RegisterView(stage, out, in).show();
+            } else {
+                statusLabel.setText("Błąd: Serwer jest nieosiągalny!");
+            }
+        });
 
         loginButton.setOnAction(e -> {
             String username = usernameField.getText();
@@ -158,5 +177,17 @@ public class LoginView {
             System.err.println("Couldnt get arp" + e);
         }
         return ipAddresses;
+    }
+    //Metoda do łączenia się
+    private void connectToServer() {
+        try {
+            // Upewnij się, że serwer jest uruchomiony na tym porcie!
+            java.net.Socket socket = new java.net.Socket("127.0.0.1", 12345);
+            this.out = new java.io.PrintWriter(socket.getOutputStream(), true);
+            this.in = new java.io.BufferedReader(new java.io.InputStreamReader(socket.getInputStream()));
+            System.out.println("Połączono z serwerem.");
+        } catch (Exception e) {
+            System.err.println("Błąd połączenia: " + e.getMessage());
+        }
     }
 }

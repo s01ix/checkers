@@ -1,10 +1,8 @@
 package com.example.checkers.server;
 
 import com.example.checkers.server.Room;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
+
+import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
@@ -43,18 +41,30 @@ public class Server {
             while ((line = in.readLine()) != null) {
                 System.out.println("Odebrano: " + line);
 
-                // LOGOWANIE
-                if (line.startsWith("LOGIN ")) {
+                // REJESTRACJA
+                if (line.startsWith("REGISTER ")) {
                     String[] parts = line.split(" ");
-                    if (parts.length == 3 && parts[1].equals(parts[2])) {
-                        username = parts[1];
-                        out.println("LOGIN_SUCCESS");
-                    } else {
-                        out.println("LOGIN_FAILED Hasło niezgodne");
-                        return;
+                    if (parts.length == 3) {
+                        String response = registerUser(parts[1], parts[2]);
+                        out.println(response);
                     }
                 }
+                // LOGOWANIE
+                else if (line.startsWith("LOGIN ")) {
+                    String[] parts = line.split(" ");
+                    if (parts.length == 3) {
+                        String user = parts[1];
+                        String pass = parts[2];
 
+                        if (validateLogin(user, pass)) {
+                            username = user;
+                            out.println("LOGIN_SUCCESS");
+                            System.out.println("Zalogowano: " + username);
+                        } else {
+                            out.println("LOGIN_FAILED Bledny login lub haslo");
+                        }
+                    }
+                }
                 // TWORZENIE POKOJU
                 else if (line.startsWith("CREATE_ROOM")) {
                     Room newRoom = new Room(username, socket, out);
@@ -108,5 +118,50 @@ public class Server {
         } catch (Exception e) {
             System.err.println("Błąd klienta: " + e.getMessage());
         }
+    }
+    //Metoda do rejestracji
+    private static synchronized String registerUser(String username, String password) {
+        try {
+            File file = new File("users.txt");
+            if (!file.exists()) file.createNewFile();
+
+            // Sprawdzamy czy login już istnieje
+            try (BufferedReader br = new BufferedReader(new FileReader(file))) {
+                String line;
+                while ((line = br.readLine()) != null) {
+                    if (line.isEmpty()) continue;
+                    String[] parts = line.split(":");
+                    if (parts[0].equalsIgnoreCase(username)) {
+                        return "REGISTER_FAILED Login zajety";
+                    }
+                }
+            }
+
+            // Jeśli nie istnieje, dopisujemy na końcu pliku
+            try (PrintWriter pw = new PrintWriter(new FileWriter(file, true))) {
+                pw.println(username + ":" + password);
+            }
+            return "REGISTER_SUCCESS";
+        } catch (IOException e) {
+            return "REGISTER_FAILED Blad serwera";
+        }
+    }
+    //Metoda do logowania
+    private static synchronized boolean validateLogin(String username, String password) {
+        File file = new File("users.txt");
+        if (!file.exists()) return false;
+
+        try (BufferedReader br = new BufferedReader(new FileReader(file))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                String[] parts = line.split(":");
+                if (parts.length == 2 && parts[0].equals(username) && parts[1].equals(password)) {
+                    return true;
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return false;
     }
 }

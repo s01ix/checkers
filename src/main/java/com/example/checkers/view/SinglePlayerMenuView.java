@@ -53,9 +53,9 @@ public class SinglePlayerMenuView {
         HBox buttonBox = new HBox(15);
         buttonBox.setAlignment(Pos.CENTER);
 
-        Button easyBtn = createStyledMenuButton("ŁATWY", "#2e7d32");
-        Button mediumBtn = createStyledMenuButton("ŚREDNI", "#2e7d32");
-        Button hardBtn = createStyledMenuButton("TRUDNY", "#2e7d32");
+        Button easyBtn = createStyledMenuButton("ŁATWY");
+        Button mediumBtn = createStyledMenuButton("ŚREDNI");
+        Button hardBtn = createStyledMenuButton("TRUDNY");
 
         easyBtn.setOnAction(e -> startGame(ComputerPlayer.Difficulty.EASY));
         mediumBtn.setOnAction(e -> startGame(ComputerPlayer.Difficulty.MEDIUM));
@@ -64,7 +64,7 @@ public class SinglePlayerMenuView {
         buttonBox.getChildren().addAll(easyBtn, mediumBtn, hardBtn);
 
         // Przycisk powrotu
-        Button backBtn = createStyledMenuButton("POWRÓT","#2e7d32");
+        Button backBtn = createStyledMenuButton("POWRÓT");
         styleSecondaryButton(backBtn);
         backBtn.setOnAction(e -> new MainMenuView(stage, username, password).show());
 
@@ -89,11 +89,11 @@ public class SinglePlayerMenuView {
     }
 
     //Metoda stylizująca
-    private Button createStyledMenuButton(String text, String color) {
+    private Button createStyledMenuButton(String text) {
         Button btn = new Button(text);
         btn.setPrefSize(120, 60);
         btn.setStyle(
-                "-fx-background-color: " + color + "; " +
+                "-fx-background-color: #2e7d32; " +
                         "-fx-text-fill: white; " +
                         "-fx-font-weight: bold; " +
                         "-fx-font-size: 14px; " +
@@ -111,7 +111,7 @@ public class SinglePlayerMenuView {
 
     private void styleSecondaryButton(Button btn) {
         btn.setStyle(
-                "-fx-background-color: #555555; " +
+                "-fx-background-color: #2e7d32; " +
                         "-fx-text-fill: white; " +
                         "-fx-font-size: 14px; " +
                         "-fx-background-radius: 10; " +

@@ -1,5 +1,10 @@
 package com.example.checkers.view;
 
+import com.example.checkers.model.Board;
+import com.example.checkers.model.GameManager;
+import com.example.checkers.controller.Move;
+import com.example.checkers.network.NetworkClient;
+
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -53,7 +58,18 @@ public class LobbyView {
         Button refreshBtn = new Button("ODŚWIEŻ");
         styleGreenButton(refreshBtn);
 
-        controls.getChildren().addAll(createBtn, joinBtn, refreshBtn);
+        Button backBtn = new Button("POWRÓT");
+        styleGreenButton(backBtn);
+
+        controls.getChildren().addAll(createBtn, joinBtn, refreshBtn, backBtn);
+
+        //POWRÓT DO MENU
+        backBtn.setOnAction(e -> {
+            if(out != null){
+                out.println("LEAVE_LOBBY");
+            }
+            new MainMenuView(stage, username, out, in).show();
+        });
 
         //STWORZENIE POKOJU
         createBtn.setOnAction(e -> {
@@ -131,6 +147,7 @@ public class LobbyView {
             }
         });
 
+
         layout.getChildren().addAll(title, roomList, controls);
         root.getChildren().add(layout);
 
@@ -144,14 +161,17 @@ public class LobbyView {
     //Inicjalizacja i wyświetlenie widoku gry
     private void launchGame(String color) {
         Platform.runLater(() -> {
-            com.example.checkers.model.Board boardModel = new com.example.checkers.model.Board();
-            com.example.checkers.model.GameManager gameManager = new com.example.checkers.model.GameManager(boardModel);
+            Board boardModel = new Board();
+            GameManager gameManager = new GameManager(boardModel);
             BoardView boardView = new BoardView(boardModel);
 
-            com.example.checkers.network.NetworkClient networkClient =
-                    new com.example.checkers.network.NetworkClient(out, in, gameManager, boardView, username, color);
+            if ("BLACK".equalsIgnoreCase(color)) {
+                boardView.flipBoard();
+            }
 
-            new com.example.checkers.controller.Move(gameManager, boardView, networkClient);
+            NetworkClient networkClient = new NetworkClient(out, in, gameManager, boardView, username, color);
+
+            Move Move = new Move(gameManager, boardView, networkClient);
 
             stage.setScene(new Scene(boardView.getGridPane()));
             stage.setTitle("Warcaby - Grasz jako " + color);

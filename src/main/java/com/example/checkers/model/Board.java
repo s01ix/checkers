@@ -1,23 +1,12 @@
 package com.example.checkers.model;
 
-//import javafx.scene.layout.GridPane;
-//import javafx.scene.control.*;
-
 public class Board {
-//    private GameManager gameManager;
-//    private Move move;
     public static final int SIZE = 8;
     private final Piece[][] squares = new Piece[SIZE][SIZE];
 
     public Board() {
-//        this.gameManager = new GameManager(this);
-//        this.move = new Move(this.gameManager);
         initStartingPositions();
     }
-
-//    public Button[][] getSquares() {
-//        return squares;
-//    }
 
     private void initStartingPositions() {
         for (int row = 0; row < SIZE; row++) {
