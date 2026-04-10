@@ -26,6 +26,7 @@ public class LoginView {
     public LoginView(Stage stage) {
         this.stage = stage;
     }
+
     public void show() {
         StackPane root = new StackPane();
         try {
@@ -60,6 +61,10 @@ public class LoginView {
         Button registerButton = new Button("ZAREJESTRUJ");
         styleGreenButton(registerButton);
 
+        // NOWY PRZYCISK: Autorzy
+        Button authorsButton = new Button("AUTORZY");
+        styleSecondaryButton(authorsButton);
+
         Label statusLabel = new Label("");
         statusLabel.setStyle("-fx-text-fill: #FF3333; " + "-fx-font-weight: bold; " + "-fx-font-size: 14px; ");
 
@@ -72,6 +77,11 @@ public class LoginView {
             } else {
                 statusLabel.setText("Błąd: Serwer jest nieosiągalny!");
             }
+        });
+
+        // LOGIKA NOWEGO PRZYCISKU
+        authorsButton.setOnAction(e -> {
+            new AuthorsView(stage, out, in).show();
         });
 
         loginButton.setOnAction(e -> {
@@ -119,7 +129,8 @@ public class LoginView {
             }).start();
         });
 
-        menuBox.getChildren().addAll(titleLabel, usernameField, passwordField, loginButton, registerButton, statusLabel);
+        // DODANO authorsButton DO WIDOKU
+        menuBox.getChildren().addAll(titleLabel, usernameField, passwordField, loginButton, registerButton, authorsButton, statusLabel);
         root.getChildren().add(menuBox);
 
         if (stage.getScene() == null) {
@@ -148,6 +159,19 @@ public class LoginView {
         );
         btn.setOnMouseEntered(e -> btn.setStyle(btn.getStyle() + "-fx-background-color: #388e3c;"));
         btn.setOnMouseExited(e -> btn.setStyle(btn.getStyle() + "-fx-background-color: #2e7d32;"));
+    }
+
+    // Nowa metoda na styl pobocznego przycisku
+    private void styleSecondaryButton(Button btn) {
+        btn.setMinWidth(200);
+        btn.setStyle(
+                "-fx-background-color: #1b5e20; " +
+                        "-fx-text-fill: white; " +
+                        "-fx-font-weight: bold; " +
+                        "-fx-font-size: 14px; " +
+                        "-fx-background-radius: 10; " +
+                        "-fx-cursor: hand;"
+        );
     }
 
     public static List<String> getArpIps() {
