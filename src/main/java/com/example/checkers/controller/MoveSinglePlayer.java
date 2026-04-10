@@ -8,6 +8,7 @@ import com.example.checkers.view.ThemeManager;
 import javafx.animation.PauseTransition;
 import javafx.scene.control.Button;
 import javafx.util.Duration;
+import java.io.PrintWriter;
 
 public class MoveSinglePlayer {
     private final GameManager gameManager;
@@ -20,15 +21,21 @@ public class MoveSinglePlayer {
         this.gameManager = gameManager;
         this.boardView = boardView;
         this.ai = ai;
+        this.boardView.setGameManager(gameManager);
         setupHandlers();
+    }
+
+    private void autoSave() {
+        try (PrintWriter out = new PrintWriter("autosave_single.json")) {
+            out.print(boardView.getGameStateAsJson());
+        } catch (Exception e) { e.printStackTrace(); }
     }
 
     private void setupHandlers() {
         Button[][] buttons = boardView.getButtons();
         for (int r = 0; r < 8; r++) {
             for (int c = 0; c < 8; c++) {
-                final int row = r;
-                final int col = c;
+                final int row = r, col = c;
                 buttons[r][c].setOnAction(e -> handlePlayerMove(row, col));
             }
         }
@@ -39,38 +46,34 @@ public class MoveSinglePlayer {
 
         if (selectedRow == -1) {
             if (gameManager.isSelectable(row, col)) {
-                selectedRow = row;
-                selectedCol = col;
+                selectedRow = row; selectedCol = col;
                 highlight(row, col);
             }
         } else {
-
             if (selectedRow == row && selectedCol == col) {
                 clearHighlight(selectedRow, selectedCol);
-                selectedRow = -1;
-                selectedCol = -1;
+                selectedRow = -1; selectedCol = -1;
                 return;
             }
-
-
             if (gameManager.isSelectable(row, col)) {
                 clearHighlight(selectedRow, selectedCol);
-                selectedRow = row;
-                selectedCol = col;
+                selectedRow = row; selectedCol = col;
                 highlight(row, col);
                 return;
             }
 
+            String playerName = gameManager.getCurrentPlayer().getName();
+            int fr = selectedRow, fc = selectedCol;
 
-            boolean moved = gameManager.performMove(selectedRow, selectedCol, row, col);
-            clearHighlight(selectedRow, selectedCol);
-            selectedRow = -1;
-            selectedCol = -1;
-
-            if (moved) {
+            if (gameManager.performMove(selectedRow, selectedCol, row, col)) {
                 boardView.updateView();
+                boardView.addMoveToLog(fr, fc, row, col, playerName);
+                autoSave();
                 checkAiTurn();
             }
+
+            clearHighlight(selectedRow, selectedCol);
+            selectedRow = -1; selectedCol = -1;
         }
     }
 
@@ -80,6 +83,8 @@ public class MoveSinglePlayer {
             pause.setOnFinished(e -> {
                 ai.makeMove();
                 boardView.updateView();
+                boardView.addMoveToLog(0, 0, 0, 0, "Komputer");
+                autoSave();
                 if (gameManager.getCurrentPlayer().getColor() == Piece.PieceType.BLACK) {
                     checkAiTurn();
                 }
@@ -89,20 +94,22 @@ public class MoveSinglePlayer {
     }
 
     private void highlight(int r, int c) {
-        boardView.getButtons()[r][c].setStyle("-fx-border-color: yellow; -fx-border-width: 3;");
-    }
-
-    private void clearHighlight(int r, int c) {
-
         String colorStyle = ((r + c) % 2 == 0) ? ThemeManager.lightSquareColor : ThemeManager.darkSquareColor;
-
         String baseStyle = "-fx-background-color: " + colorStyle + "; " +
                 "-fx-background-insets: 0; " +
                 "-fx-background-radius: 0; " +
-                "-fx-focus-color: transparent; " +
-                "-fx-faint-focus-color: transparent; " +
-                "-fx-border-width: 0;";
+                "-fx-border-color: yellow; " +
+                "-fx-border-width: 3;";
+        boardView.getButtons()[r][c].setStyle(baseStyle);
+    }
 
+    private void clearHighlight(int r, int c) {
+        String colorStyle = ((r + c) % 2 == 0) ? ThemeManager.lightSquareColor : ThemeManager.darkSquareColor;
+        String baseStyle = "-fx-background-color: " + colorStyle + "; " +
+                "-fx-background-insets: 0; " +
+                "-fx-background-radius: 0; " +
+                "-fx-border-color: transparent; " +
+                "-fx-border-width: 3;";
         boardView.getButtons()[r][c].setStyle(baseStyle);
     }
 }

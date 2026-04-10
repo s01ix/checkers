@@ -2,112 +2,222 @@ package com.example.checkers.view;
 
 import com.example.checkers.model.Board;
 import com.example.checkers.model.Piece;
+import javafx.animation.PauseTransition;
 import javafx.beans.binding.Bindings;
-import javafx.scene.control.Button;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.layout.ColumnConstraints;
-import javafx.scene.layout.GridPane;
-import javafx.scene.layout.RowConstraints;
-import javafx.scene.layout.StackPane;
+import javafx.scene.layout.*;
+import javafx.util.Duration;
 
-import java.io.InputStream;
+import java.io.*;
+import java.nio.file.Files;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class BoardView {
     private final Board boardModel;
     private final GridPane gridPane;
-    private final StackPane rootContainer;
+    private final HBox rootContainer;
+    private final ListView<String> moveLog;
     private final Button[][] buttons = new Button[Board.SIZE][Board.SIZE];
     private boolean isFlipped = false;
+    private com.example.checkers.model.GameManager gameManager;
 
     public BoardView(Board boardModel) {
         this.boardModel = boardModel;
         this.gridPane = new GridPane();
-        this.rootContainer = new StackPane();
+        this.rootContainer = new HBox(20);
+        this.moveLog = new ListView<>();
 
-        this.rootContainer.setStyle("-fx-background-color: #4b2e1e;");
-        this.gridPane.setStyle("-fx-alignment: center;");
+        this.rootContainer.setStyle("-fx-background-color: #2c1b0e;");
+        this.rootContainer.setPadding(new Insets(20));
+        this.rootContainer.setAlignment(Pos.CENTER);
 
-        gridPane.maxWidthProperty().bind(Bindings.min(rootContainer.widthProperty(), rootContainer.heightProperty()).subtract(40));
-        gridPane.maxHeightProperty().bind(Bindings.min(rootContainer.widthProperty(), rootContainer.heightProperty()).subtract(40));
+        StackPane boardWrapper = new StackPane(gridPane);
+        HBox.setHgrow(boardWrapper, Priority.ALWAYS);
+        gridPane.maxWidthProperty().bind(Bindings.min(boardWrapper.widthProperty(), boardWrapper.heightProperty()));
+        gridPane.maxHeightProperty().bind(Bindings.min(boardWrapper.widthProperty(), boardWrapper.heightProperty()));
 
-        rootContainer.getChildren().add(gridPane);
+        VBox sidePanel = new VBox(10);
+        sidePanel.setPrefWidth(250);
+        sidePanel.setAlignment(Pos.TOP_CENTER);
+
+        Label logLabel = new Label("HISTORIA RUCHÓW");
+        logLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 16px;");
+
+        moveLog.setPrefHeight(400);
+        moveLog.setStyle("-fx-background-color: #3e2716; -fx-control-inner-background: #3e2716; " +
+                "-fx-text-fill: #f0d9b5; -fx-font-family: 'Courier New'; -fx-font-size: 14px;");
+
+        Button saveBtn = new Button("ZAPISZ GRĘ");
+        Button loadBtn = new Button("WCZYTAJ GRĘ");
+        Button deleteBtn = new Button("USUŃ ZAPIS");
+        styleControlBtn(saveBtn);
+        styleControlBtn(loadBtn);
+        styleControlBtn(deleteBtn);
+
+        saveBtn.setOnAction(e -> saveGame(saveBtn));
+        loadBtn.setOnAction(e -> loadGame(loadBtn));
+        deleteBtn.setOnAction(e -> deleteGame(deleteBtn));
+
+        sidePanel.getChildren().addAll(logLabel, moveLog, saveBtn, loadBtn, deleteBtn);
+        this.rootContainer.getChildren().addAll(boardWrapper, sidePanel);
 
         initializeBoardUI();
     }
 
+    public void setGameManager(com.example.checkers.model.GameManager gm) {
+        this.gameManager = gm;
+    }
+
+    public String getGameStateAsJson() {
+        if (gameManager == null) return "{}";
+        StringBuilder sb = new StringBuilder();
+        sb.append("{\n");
+        sb.append(gameManager.saveGameStateJsonCore()).append(",\n");
+        sb.append("  \"log\": [\n");
+        for (int i = 0; i < moveLog.getItems().size(); i++) {
+            sb.append("    \"").append(moveLog.getItems().get(i)).append("\"");
+            if (i < moveLog.getItems().size() - 1) sb.append(",");
+            sb.append("\n");
+        }
+        sb.append("  ]\n");
+        sb.append("}");
+        return sb.toString();
+    }
+
+    public void loadGameStateFromJson(String json) {
+        if (gameManager == null) return;
+        gameManager.loadGameStateJsonCore(json);
+
+        moveLog.getItems().clear();
+        Matcher mLog = Pattern.compile("\"log\"\\s*:\\s*\\[(.*?)\\]", Pattern.DOTALL).matcher(json);
+        if (mLog.find()) {
+            String logData = mLog.group(1);
+            Matcher mString = Pattern.compile("\"([^\"]+)\"").matcher(logData);
+            while (mString.find()) {
+                moveLog.getItems().add(mString.group(1));
+            }
+        }
+        updateView();
+    }
+
+    private void saveGame(Button saveBtn) {
+        if (gameManager == null) return;
+        try (PrintWriter out = new PrintWriter("manual_save.json")) {
+            out.print(getGameStateAsJson());
+
+            String originalText = saveBtn.getText();
+            saveBtn.setText("ZAPISANO!");
+            saveBtn.setStyle("-fx-background-color: #f5f682; -fx-text-fill: black; -fx-font-weight: bold; -fx-cursor: hand;");
+
+            PauseTransition pause = new PauseTransition(Duration.seconds(1.5));
+            pause.setOnFinished(e -> {
+                saveBtn.setText(originalText);
+                styleControlBtn(saveBtn);
+            });
+            pause.play();
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    private void loadGame(Button loadBtn) {
+        if (gameManager == null) return;
+        File file = new File("manual_save.json");
+        if (file.exists()) {
+            try {
+                String json = new String(Files.readAllBytes(file.toPath()));
+                loadGameStateFromJson(json);
+
+                String originalText = loadBtn.getText();
+                loadBtn.setText("WCZYTANO!");
+                loadBtn.setStyle("-fx-background-color: #f5f682; -fx-text-fill: black; -fx-font-weight: bold; -fx-cursor: hand;");
+
+                PauseTransition pause = new PauseTransition(Duration.seconds(1.5));
+                pause.setOnFinished(e -> {
+                    loadBtn.setText(originalText);
+                    styleControlBtn(loadBtn);
+                });
+                pause.play();
+            } catch (IOException ex) {
+                ex.printStackTrace();
+            }
+        }
+    }
+
+    private void deleteGame(Button deleteBtn) {
+        File file = new File("manual_save.json");
+        if (file.exists() && file.delete()) {
+            String originalText = deleteBtn.getText();
+            deleteBtn.setText("USUNIĘTO!");
+            deleteBtn.setStyle("-fx-background-color: #f5f682; -fx-text-fill: black; -fx-font-weight: bold; -fx-cursor: hand;");
+
+            PauseTransition pause = new PauseTransition(Duration.seconds(1.5));
+            pause.setOnFinished(e -> {
+                deleteBtn.setText(originalText);
+                styleControlBtn(deleteBtn);
+            });
+            pause.play();
+        }
+    }
+
+    private void styleControlBtn(Button btn) {
+        btn.setMaxWidth(Double.MAX_VALUE);
+        btn.setStyle("-fx-background-color: #2e7d32; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;");
+    }
+
+    public void addMoveToLog(int fromRow, int fromCol, int toRow, int toCol, String playerName) {
+        String from = (char)('A' + fromCol) + "" + (Board.SIZE - fromRow);
+        String to = (char)('A' + toCol) + "" + (Board.SIZE - toRow);
+        String logEntry = String.format("%-8s: %s -> %s", playerName, from, to);
+        moveLog.getItems().add(0, logEntry);
+    }
+
     private ImageView createPieceImageView(Piece piece) {
         String path = "/com/example/checkers/pieces/";
-        if (piece.getType() == Piece.PieceType.WHITE) {
-            path += piece.isKing() ? "white_king.png" : "white.png";
-        } else {
-            path += piece.isKing() ? "black_king.png" : "black.png";
-        }
-
+        if (piece.getType() == Piece.PieceType.WHITE) path += piece.isKing() ? "white_king.png" : "white.png";
+        else path += piece.isKing() ? "black_king.png" : "black.png";
         InputStream stream = getClass().getResourceAsStream(path);
         if (stream == null) {
-            String fallback = (piece.getType() == Piece.PieceType.WHITE) ? "white.png" : "black.png";
-            stream = getClass().getResourceAsStream("/com/example/checkers/pieces/" + fallback);
+            String fb = (piece.getType() == Piece.PieceType.WHITE) ? "white.png" : "black.png";
+            stream = getClass().getResourceAsStream("/com/example/checkers/pieces/" + fb);
         }
-
         if (stream == null) return null;
-
         ImageView iv = new ImageView(new Image(stream));
         iv.setPreserveRatio(true);
-
         iv.fitWidthProperty().bind(gridPane.widthProperty().divide(Board.SIZE).multiply(0.75));
         iv.fitHeightProperty().bind(gridPane.heightProperty().divide(Board.SIZE).multiply(0.75));
-
-        if (isFlipped) {
-            iv.setRotate(180);
-        }
+        if (isFlipped) iv.setRotate(180);
         return iv;
     }
 
     public void updateView() {
         for (int row = 0; row < Board.SIZE; row++) {
             for (int col = 0; col < Board.SIZE; col++) {
-                Piece pieceModel = boardModel.getPiece(row, col);
-                if (pieceModel != null) {
-                    buttons[row][col].setGraphic(createPieceImageView(pieceModel));
-                } else {
-                    buttons[row][col].setGraphic(null);
-                }
+                Piece pm = boardModel.getPiece(row, col);
+                buttons[row][col].setGraphic(pm != null ? createPieceImageView(pm) : null);
             }
         }
     }
 
     private void initializeBoardUI() {
         for (int i = 0; i < Board.SIZE; i++) {
-            ColumnConstraints colConst = new ColumnConstraints();
-            colConst.setPercentWidth(100.0 / Board.SIZE);
-            gridPane.getColumnConstraints().add(colConst);
-
-            RowConstraints rowConst = new RowConstraints();
-            rowConst.setPercentHeight(100.0 / Board.SIZE);
-            gridPane.getRowConstraints().add(rowConst);
+            ColumnConstraints cc = new ColumnConstraints(); cc.setPercentWidth(100.0 / Board.SIZE);
+            gridPane.getColumnConstraints().add(cc);
+            RowConstraints rc = new RowConstraints(); rc.setPercentHeight(100.0 / Board.SIZE);
+            gridPane.getRowConstraints().add(rc);
         }
-
         for (int row = 0; row < Board.SIZE; row++) {
             for (int col = 0; col < Board.SIZE; col++) {
                 Button cell = new Button();
                 cell.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
-
-                // ZMIANA: Teraz kolory są pobierane z ThemeManager
-                String colorStyle = ((row + col) % 2 == 0) ? ThemeManager.lightSquareColor : ThemeManager.darkSquareColor;
-
-                String baseStyle = "-fx-background-color: " + colorStyle + "; " +
-                        "-fx-background-insets: 0; " +
-                        "-fx-background-radius: 0; " +
-                        "-fx-focus-color: transparent; " +
-                        "-fx-faint-focus-color: transparent;";
-
-                cell.setStyle(baseStyle);
-
-                // Efekt żółtego podświetlenia po naciśnięciu
-                cell.setOnMousePressed(e -> cell.setStyle(baseStyle + "-fx-background-color: #f5f682;"));
-                cell.setOnMouseReleased(e -> cell.setStyle(baseStyle));
-
+                String color = ((row + col) % 2 == 0) ? ThemeManager.lightSquareColor : ThemeManager.darkSquareColor;
+                String base = "-fx-background-color: " + color + "; -fx-background-insets: 0; -fx-background-radius: 0; -fx-border-color: transparent; -fx-border-width: 3;";
+                cell.setStyle(base);
                 buttons[row][col] = cell;
                 gridPane.add(cell, col, row);
             }
@@ -115,18 +225,8 @@ public class BoardView {
         updateView();
     }
 
-    public StackPane getRootContainer() {
-        return rootContainer;
-    }
-
-    public GridPane getGridPane() {
-        return gridPane;
-    }
-
-    public Button[][] getButtons() {
-        return buttons;
-    }
-
+    public HBox getRootContainer() { return rootContainer; }
+    public Button[][] getButtons() { return buttons; }
     public void flipBoard() {
         gridPane.setRotate(180);
         this.isFlipped = true;

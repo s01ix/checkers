@@ -1,8 +1,9 @@
 package com.example.checkers.model;
-//import javafx.scene.control.Button;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class GameManager {
     private Board board;
@@ -27,6 +28,69 @@ public class GameManager {
         return currentPlayer;
     }
 
+    public Board getBoard() {
+        return board;
+    }
+
+    public String saveGameStateJsonCore() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("  \"currentPlayer\": \"").append(currentPlayer.getColor()).append("\",\n");
+        sb.append("  \"movesWithoutCapture\": ").append(movesWithoutCapture).append(",\n");
+        sb.append("  \"board\": [\n");
+        for (int r = 0; r < Board.SIZE; r++) {
+            for (int c = 0; c < Board.SIZE; c++) {
+                Piece p = board.getPiece(r, c);
+                sb.append("    \"");
+                if (p == null) {
+                    sb.append("0");
+                } else {
+                    sb.append(p.getType() == Piece.PieceType.WHITE ? "W" : "B");
+                    sb.append(p.isKing() ? "K" : "P");
+                }
+                sb.append("\"");
+                if (r < Board.SIZE - 1 || c < Board.SIZE - 1) sb.append(",");
+            }
+            sb.append("\n");
+        }
+        sb.append("  ]");
+        return sb.toString();
+    }
+
+    public void loadGameStateJsonCore(String json) {
+        Matcher mPlayer = Pattern.compile("\"currentPlayer\"\\s*:\\s*\"(WHITE|BLACK)\"").matcher(json);
+        if (mPlayer.find()) {
+            currentPlayer = mPlayer.group(1).equals("WHITE") ? playerWhite : playerBlack;
+        }
+
+        Matcher mMoves = Pattern.compile("\"movesWithoutCapture\"\\s*:\\s*(\\d+)").matcher(json);
+        if (mMoves.find()) {
+            movesWithoutCapture = Integer.parseInt(mMoves.group(1));
+        }
+
+        Matcher mBoard = Pattern.compile("\"board\"\\s*:\\s*\\[(.*?)\\]", Pattern.DOTALL).matcher(json);
+        if (mBoard.find()) {
+            String boardData = mBoard.group(1).replaceAll("\"", "").replaceAll("\\s+", "");
+            String[] squares = boardData.split(",");
+            int idx = 0;
+            for (int r = 0; r < Board.SIZE; r++) {
+                for (int c = 0; c < Board.SIZE; c++) {
+                    if (idx < squares.length) {
+                        String data = squares[idx++];
+                        if (data.equals("0")) {
+                            board.setPiece(r, c, null);
+                        } else {
+                            Piece.PieceType type = data.startsWith("W") ? Piece.PieceType.WHITE : Piece.PieceType.BLACK;
+                            Piece p = new Piece(type);
+                            if (data.endsWith("K")) p.makeKing();
+                            board.setPiece(r, c, p);
+                        }
+                    }
+                }
+            }
+        }
+        positionHistory.clear();
+    }
+
     private void switchPlayer() {
         currentPlayer = (currentPlayer == playerWhite) ? playerBlack : playerWhite;
         isMultiCapturing = false;
@@ -34,49 +98,31 @@ public class GameManager {
 
     public boolean isAvailableMove(int fromRow, int fromCol, int toRow, int toCol) {
         if (toRow < 0 || toRow >= Board.SIZE || toCol < 0 || toCol >= Board.SIZE) return false;
-
         if (isMultiCapturing) {
-            if (fromRow != multiCaptureRow || fromCol != multiCaptureCol) {
-                System.out.println("Musisz dokończyć wielokrotne bicie tym samym pionkiem!");
-                return false;
-            }
+            if (fromRow != multiCaptureRow || fromCol != multiCaptureCol) return false;
         }
-
-        // Pobranie czystego Piece
         Piece piece = board.getPiece(fromRow,fromCol);
         if (piece == null) return false;
-
         if(board.getPiece(toRow,toCol) != null) return false;
-
         int dx = Math.abs(toCol - fromCol);
         int dy = Math.abs(toRow - fromRow);
-
         if (dx != dy) return false;
-
-        if (piece.isKing()) {
-            return isAvailableKingMove(fromRow, fromCol, toRow, toCol, piece);
-        } else {
-            return isAvailableRegularMove(fromRow, fromCol, toRow, toCol, piece);
-        }
+        if (piece.isKing()) return isAvailableKingMove(fromRow, fromCol, toRow, toCol, piece);
+        else return isAvailableRegularMove(fromRow, fromCol, toRow, toCol, piece);
     }
 
     private boolean isAvailableRegularMove(int fromRow, int fromCol, int toRow, int toCol, Piece piece) {
         int dx = Math.abs(toCol - fromCol);
         int rowDiff = toRow - fromRow;
         int direction = (piece.getType() == Piece.PieceType.WHITE) ? -1 : 1;
-
         if (dx == 1) {
             if (rowDiff == direction) {
                 if (isMultiCapturing) return false;
-                if (getPlayerMaxCaptures(currentPlayer) > 0) {
-                    System.out.println("Uwaga! Masz obowiązek bicia. Zwykły ruch jest niedozwolony.");
-                    return false;
-                }
+                if (getPlayerMaxCaptures(currentPlayer) > 0) return false;
                 return true;
             }
             return false;
         }
-
         if (dx == 2 && Math.abs(rowDiff) == 2) {
             int jumpedRow = (fromRow + toRow) / 2;
             int jumpedCol = (fromCol + toCol) / 2;
@@ -85,11 +131,7 @@ public class GameManager {
                 int maxPossible = getPlayerMaxCaptures(currentPlayer);
                 boolean[][] simulatedCaptures = new boolean[Board.SIZE][Board.SIZE];
                 simulatedCaptures[jumpedRow][jumpedCol] = true;
-
-                if (1 + getPieceMaxCaptures(toRow, toCol, piece, simulatedCaptures) < maxPossible) {
-                    System.out.println("Zasada bicia większości! Musisz wybrać ścieżkę, która zbija " + maxPossible + " pionków!");
-                    return false;
-                }
+                if (1 + getPieceMaxCaptures(toRow, toCol, piece, simulatedCaptures) < maxPossible) return false;
                 return true;
             }
         }
@@ -99,25 +141,19 @@ public class GameManager {
     private boolean isAvailableKingMove(int fromRow, int fromCol, int toRow, int toCol, Piece piece) {
         int rowDir = (toRow - fromRow) > 0 ? 1 : -1;
         int colDir = (toCol - fromCol) > 0 ? 1 : -1;
-
         int currentRow = fromRow + rowDir;
         int currentCol = fromCol + colDir;
-
         boolean encounteredPiece = false;
-
         while (currentRow != toRow && currentCol != toCol) {
             Piece p = board.getPiece(currentRow,currentCol);
-
             if (p != null) {
                 if (encounteredPiece) return false;
                 if (p.getType() == piece.getType()) return false;
                 encounteredPiece = true;
             }
-
             currentRow += rowDir;
             currentCol += colDir;
         }
-
         if (encounteredPiece) {
             int jRow = fromRow + rowDir;
             int jCol = fromCol + colDir;
@@ -126,24 +162,14 @@ public class GameManager {
                 jRow += rowDir;
                 jCol += colDir;
             }
-
-            // SPRAWDZENIE ZASADY WIĘKSZOŚCI
             int maxPossible = getPlayerMaxCaptures(currentPlayer);
             boolean[][] simulatedCaptures = new boolean[Board.SIZE][Board.SIZE];
             simulatedCaptures[jRow][jCol] = true;
-
-            if (1 + getPieceMaxCaptures(toRow, toCol, piece, simulatedCaptures) < maxPossible) {
-                System.out.println("Zasada bicia większości! Musisz wybrać ścieżkę, która zbija " + maxPossible + " pionków!");
-                return false;
-            }
+            if (1 + getPieceMaxCaptures(toRow, toCol, piece, simulatedCaptures) < maxPossible) return false;
             return true;
         } else {
             if (isMultiCapturing) return false;
-            // Sprawdzenie obowiązku bicia
-            if (getPlayerMaxCaptures(currentPlayer) > 0) {
-                System.out.println("Uwaga! Masz obowiązek bicia. Zwykły ruch jest niedozwolony.");
-                return false;
-            }
+            if (getPlayerMaxCaptures(currentPlayer) > 0) return false;
             return true;
         }
     }
@@ -154,13 +180,9 @@ public class GameManager {
             for(int c = 0; c < Board.SIZE; c++){
                 Piece p = board.getPiece(r,c);
                 if (p != null && p.getType() == player.getColor()) {
-                    // Blokujemy inne pionki, jeśli jesteśmy w trakcie wielokrotnego bicia
                     if (isMultiCapturing && (r != multiCaptureRow || c != multiCaptureCol)) continue;
-
                     int captures = getPieceMaxCaptures(r, c, p, new boolean[Board.SIZE][Board.SIZE]);
-                    if (captures > maxCapture) {
-                        maxCapture = captures;
-                    }
+                    if (captures > maxCapture) maxCapture = captures;
                 }
             }
         }
@@ -178,21 +200,18 @@ public class GameManager {
                     boolean foundEnemy = false;
                     int enemyRow = -1;
                     int enemyCol = -1;
-
                     while (currentRow >= 0 && currentRow < Board.SIZE && currentCol >= 0 && currentCol < Board.SIZE) {
                         Piece p = board.getPiece(currentRow,currentCol);
                         if (p != null) {
-                            if (p.getType() == piece.getType() || foundEnemy || captured[currentRow][currentCol]) {
-                                break;
-                            }
+                            if (p.getType() == piece.getType() || foundEnemy || captured[currentRow][currentCol]) break;
                             foundEnemy = true;
                             enemyRow = currentRow;
                             enemyCol = currentCol;
                         } else if (foundEnemy) {
-                            captured[enemyRow][enemyCol] = true; // Oznaczony pionek jako zbity
-                            int captureCount = 1 + getPieceMaxCaptures(currentRow, currentCol, piece, captured); // skanujemy czy dalej możemy zbić
+                            captured[enemyRow][enemyCol] = true;
+                            int captureCount = 1 + getPieceMaxCaptures(currentRow, currentCol, piece, captured);
                             if (captureCount > max) max = captureCount;
-                            captured[enemyRow][enemyCol] = false; // Cofamy symulacje
+                            captured[enemyRow][enemyCol] = false;
                         }
                         currentRow += dRows;
                         currentCol += dCols;
@@ -227,14 +246,10 @@ public class GameManager {
     private int[] getCapturedCoords(int fromRow, int fromCol, int toRow, int toCol) {
         int rowDir = (toRow - fromRow) > 0 ? 1 : -1;
         int colDir = (toCol - fromCol) > 0 ? 1 : -1;
-
         int currentRow = fromRow + rowDir;
         int currentCol = fromCol + colDir;
-
         while (currentRow != toRow && currentCol != toCol) {
-            if (board.getPiece(currentRow, currentCol) != null) {
-                return new int[]{currentRow, currentCol};
-            }
+            if (board.getPiece(currentRow, currentCol) != null) return new int[]{currentRow, currentCol};
             currentRow += rowDir;
             currentCol += colDir;
         }
@@ -243,56 +258,40 @@ public class GameManager {
 
     public boolean performMove(int fromRow, int fromCol, int toRow, int toCol) {
         if (isAvailableMove(fromRow, fromCol, toRow, toCol)) {
-
             Piece piece = board.getPiece(fromRow,fromCol);
             boolean wasCapture = false;
-
             int [] capturedCords = getCapturedCoords(fromRow, fromCol, toRow, toCol);
-
             if (capturedCords != null) {
                 board.removePiece(capturedCords[0], capturedCords[1]);
                 wasCapture = true;
-                System.out.println("Zbito pionek przeciwnika!");
             }
-
             if(wasCapture){
                 movesWithoutCapture = 0;
                 positionHistory.clear();
-            }
-            else{
-                movesWithoutCapture++;
-            }
-
+            } else movesWithoutCapture++;
             board.movePiece(fromRow, fromCol, toRow, toCol);
-
-            if (wasCapture && getPieceMaxCaptures(toRow, toCol, piece, new boolean[Board.SIZE][Board.SIZE]) > 0) {                isMultiCapturing = true;
+            if (wasCapture && getPieceMaxCaptures(toRow, toCol, piece, new boolean[Board.SIZE][Board.SIZE]) > 0) {
+                isMultiCapturing = true;
                 multiCaptureRow = toRow;
                 multiCaptureCol = toCol;
-                System.out.println("Możliwe wielokrotne bicie! Kontynuuj ruch tym samym pionkiem.");
                 return true;
             }
-
             if(!piece.isKing()){
-                if((piece.getType() == Piece.PieceType.WHITE && toRow == 0) ||
-                        (piece.getType() == Piece.PieceType.BLACK && toRow == Board.SIZE-1)){
+                if((piece.getType() == Piece.PieceType.WHITE && toRow == 0) || (piece.getType() == Piece.PieceType.BLACK && toRow == Board.SIZE-1)){
                     piece.makeKing();
                     positionHistory.clear();
                 }
             }
-
             switchPlayer();
             String state = getBoardStateString();
             positionHistory.put(state, positionHistory.getOrDefault(state, 0) + 1);
             checkWin();
             checkDraw();
             return true;
-        } else {
-            System.out.println("Ruch niedozwolony!");
-            return false;
         }
+        return false;
     }
 
-    //Później jak podzielimy na graczy to zmieni się na boolean
     public void checkWin(){
         int whitePeace = 0;
         int blackPieces = 0;
@@ -300,57 +299,29 @@ public class GameManager {
             for(int c = 0; c < Board.SIZE; c++){
                 Piece piece = board.getPiece(r, c);
                 if(piece != null){
-                    if(piece.getType() == Piece.PieceType.WHITE){
-                        whitePeace++;
-                    } else {
-                        blackPieces++;
-                    }
+                    if(piece.getType() == Piece.PieceType.WHITE) whitePeace++;
+                    else blackPieces++;
                 }
             }
         }
-        if(whitePeace == 0){
-            System.out.println("Wygrywa gracz: " + playerBlack.getName());
-            return;
-        } else if(blackPieces == 0){
-            System.out.println("Wygrywa gracz: " + playerWhite.getName());
-            return;
-        }
-        if (!hasAnyValidMoves(currentPlayer)) {
-            Player winner = (currentPlayer == playerWhite) ? playerBlack : playerWhite;
-            System.out.println("====== KONIEC GRY: ZWYCIĘŻYŁ " + winner.getName().toUpperCase() + "! (" + currentPlayer.getName() + " nie ma żadnego ruchu) ======");
-        }
+        if(whitePeace == 0 || blackPieces == 0 || !hasAnyValidMoves(currentPlayer)) return;
     }
 
     public boolean checkDraw() {
-        if (isThreefoldRepetition() || isMovesWithoutCaptureLimitReached() || isMaterialDraw()) {
-            System.out.println("====== KONIEC GRY: REMIS! ======");
-            return true;
-        }
-        return false;
+        return isThreefoldRepetition() || isMovesWithoutCaptureLimitReached() || isMaterialDraw();
     }
 
     private boolean isThreefoldRepetition() {
         String state = getBoardStateString();
-        if (positionHistory.getOrDefault(state, 0) >= 3) {
-            System.out.println("Powód remisu: Trzykrotne powtórzenie identycznej pozycji na planszy.");
-            return true;
-        }
-        return false;
+        return positionHistory.getOrDefault(state, 0) >= 3;
     }
 
     private boolean isMovesWithoutCaptureLimitReached() {
-        if (movesWithoutCapture >= MAX_MOVES_WITHOUT_CAPTURE) {
-            System.out.println("Powód remisu: Wykonano " + MAX_MOVES_WITHOUT_CAPTURE + " ruchów bez żadnego bicia.");
-            return true;
-        }
-        return false;
+        return movesWithoutCapture >= MAX_MOVES_WITHOUT_CAPTURE;
     }
 
     private boolean isMaterialDraw() {
-        int whiteKings = 0;
-        int blackKings = 0;
-        int totalPieces = 0;
-
+        int whiteKings = 0, blackKings = 0, totalPieces = 0;
         for (int r = 0; r < Board.SIZE; r++) {
             for (int c = 0; c < Board.SIZE; c++) {
                 Piece p = board.getPiece(r,c);
@@ -363,25 +334,16 @@ public class GameManager {
                 }
             }
         }
-
-        // Remis jeśli na całej planszy zostały tylko dwie figury i są to obie damki
-        if (totalPieces == 2 && whiteKings == 1 && blackKings == 1) {
-            System.out.println("Powód remisu: Brak możliwości wygranej (Damka vs Damka).");
-            return true;
-        }
-        return false;
+        return totalPieces == 2 && whiteKings == 1 && blackKings == 1;
     }
 
-    // Tworzy tekstową "mapę" całej planszy, żeby łatwo sprawdzić, czy układ się powtórzył
     private String getBoardStateString() {
         StringBuilder sb = new StringBuilder();
-
         for (int row = 0; row < Board.SIZE; row++) {
             for (int col = 0; col < Board.SIZE; col++) {
                 Piece piece = board.getPiece(row, col);
-                if (piece == null) {
-                    sb.append("-");
-                } else {
+                if (piece == null) sb.append("-");
+                else {
                     sb.append(piece.getType() == Piece.PieceType.WHITE ? "W" : "B");
                     sb.append(piece.isKing() ? "K" : "P");
                 }
@@ -393,21 +355,17 @@ public class GameManager {
 
     private boolean hasAnyValidMoves(Player player) {
         if (getPlayerMaxCaptures(player) > 0) return true;
-
         for (int row = 0; row < Board.SIZE; row++) {
             for (int col = 0; col < Board.SIZE; col++) {
                 Piece piece = board.getPiece(row,col);
                 if (piece != null && piece.getType() == player.getColor()) {
-
                     if (piece.isKing()) {
-                        int[] dRows = {-1, 1};
-                        int[] dCols = {-1, 1};
+                        int[] dRows = {-1, 1}, dCols = {-1, 1};
                         for (int dr : dRows) {
                             for (int dc : dCols) {
-                                int tRow = row + dr;
-                                int tCol = col + dc;
+                                int tRow = row + dr, tCol = col + dc;
                                 if (tRow >= 0 && tRow < Board.SIZE && tCol >= 0 && tCol < Board.SIZE) {
-                                    if (board.getPiece(row, col) == null) return true;
+                                    if (board.getPiece(tRow, tCol) == null) return true;
                                 }
                             }
                         }
@@ -415,14 +373,12 @@ public class GameManager {
                         int direction = (piece.getType() == Piece.PieceType.WHITE) ? -1 : 1;
                         int[] dCols = {-1, 1};
                         for (int dc : dCols) {
-                            int tRow = row + direction;
-                            int tCol = col + dc;
+                            int tRow = row + direction, tCol = col + dc;
                             if (tRow >= 0 && tRow < Board.SIZE && tCol >= 0 && tCol < Board.SIZE) {
                                 if (board.getPiece(tRow, tCol) == null) return true;
                             }
                         }
                     }
-
                 }
             }
         }
@@ -431,7 +387,6 @@ public class GameManager {
 
     public boolean isSelectable(int row, int col) {
         Piece piece = board.getPiece(row, col);
-        // Można zaznaczyć tylko jeśli to pionek aktualnego gracza
         return piece != null && piece.getType() == currentPlayer.getColor();
     }
 }

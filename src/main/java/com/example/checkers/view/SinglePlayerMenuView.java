@@ -15,8 +15,10 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
-public class SinglePlayerMenuView {
+import java.io.File;
+import java.nio.file.Files;
 
+public class SinglePlayerMenuView {
     private final Stage stage;
     private final String username;
     private final String password;
@@ -31,19 +33,14 @@ public class SinglePlayerMenuView {
         StackPane root = new StackPane();
         try {
             String imagePath = getClass().getResource("/com/example/checkers/pieces/background.png").toExternalForm();
-            root.setStyle("-fx-background-image: url('" + imagePath + "'); " +
-                    "-fx-background-size: cover; " +
-                    "-fx-background-position: center;");
-        } catch (Exception e) {
-            root.setStyle("-fx-background-color: #4b2e1e;");
-        }
+            root.setStyle("-fx-background-image: url('" + imagePath + "'); -fx-background-size: cover;");
+        } catch (Exception e) { root.setStyle("-fx-background-color: #4b2e1e;"); }
 
         VBox menuBox = new VBox(25);
         menuBox.setAlignment(Pos.CENTER);
-        menuBox.setMaxWidth(500);
         menuBox.setPadding(new Insets(40));
 
-        Label titleLabel = new Label("POZIOM TRUDNOŚCI");
+        Label titleLabel = new Label("GRA Z KOMPUTEREM");
         titleLabel.setStyle("-fx-font-size: 30px; -fx-font-weight: bold; -fx-text-fill: white;");
 
         HBox buttonBox = new HBox(15);
@@ -53,74 +50,71 @@ public class SinglePlayerMenuView {
         Button mediumBtn = createStyledMenuButton("ŚREDNI");
         Button hardBtn = createStyledMenuButton("TRUDNY");
 
-        easyBtn.setOnAction(e -> startGame(ComputerPlayer.Difficulty.EASY));
-        mediumBtn.setOnAction(e -> startGame(ComputerPlayer.Difficulty.MEDIUM));
-        hardBtn.setOnAction(e -> startGame(ComputerPlayer.Difficulty.HARD));
+        easyBtn.setOnAction(e -> startGame(ComputerPlayer.Difficulty.EASY, false));
+        mediumBtn.setOnAction(e -> startGame(ComputerPlayer.Difficulty.MEDIUM, false));
+        hardBtn.setOnAction(e -> startGame(ComputerPlayer.Difficulty.HARD, false));
 
         buttonBox.getChildren().addAll(easyBtn, mediumBtn, hardBtn);
+
+        VBox mainActions = new VBox(15);
+        mainActions.setAlignment(Pos.CENTER);
+        mainActions.getChildren().add(buttonBox);
+
+        File saveFile = new File("autosave_single.json");
+        if (saveFile.exists()) {
+            Button resumeBtn = createStyledMenuButton("WZNÓW OSTATNIĄ GRĘ");
+            resumeBtn.setPrefWidth(390);
+            resumeBtn.setStyle(resumeBtn.getStyle() + "-fx-background-color: #f5f682; -fx-text-fill: black;");
+            resumeBtn.setOnAction(e -> startGame(ComputerPlayer.Difficulty.MEDIUM, true));
+
+            Button deleteSaveBtn = createStyledMenuButton("USUŃ ZAPISANĄ GRĘ");
+            deleteSaveBtn.setPrefWidth(390);
+            deleteSaveBtn.setStyle(deleteSaveBtn.getStyle() + "-fx-background-color: #d32f2f; -fx-text-fill: white;");
+            deleteSaveBtn.setOnAction(e -> {
+                if (saveFile.delete()) {
+                    show();
+                }
+            });
+
+            mainActions.getChildren().addAll(resumeBtn, deleteSaveBtn);
+        }
 
         Button backBtn = createStyledMenuButton("POWRÓT");
         styleSecondaryButton(backBtn);
         backBtn.setOnAction(e -> new MainMenuView(stage, username, password).show());
 
-        menuBox.getChildren().addAll(titleLabel, buttonBox, backBtn);
+        menuBox.getChildren().addAll(titleLabel, mainActions, backBtn);
         root.getChildren().add(menuBox);
 
-        // NAPRAWA SKALOWANIA
-        if (stage.getScene() == null) {
-            stage.setScene(new Scene(root, 1000, 600));
-        } else {
-            stage.getScene().setRoot(root);
-        }
-
-        stage.setTitle("Warcaby - Poziom Trudności");
-        stage.show();
+        if (stage.getScene() == null) stage.setScene(new Scene(root, 1000, 600));
+        else stage.getScene().setRoot(root);
     }
 
-    private void startGame(ComputerPlayer.Difficulty difficulty) {
+    private void startGame(ComputerPlayer.Difficulty difficulty, boolean resume) {
         Board board = new Board();
         GameManager gm = new GameManager(board);
         BoardView view = new BoardView(board);
         ComputerPlayer ai = new ComputerPlayer(gm, board, Piece.PieceType.BLACK, difficulty);
         new MoveSinglePlayer(gm, view, ai);
 
-        stage.setTitle("Warcaby offline - vs Komputer [" + difficulty + "]");
-
-        // Zamiast generować nowy Scene z sztywnym 800x800, podmieniamy zawartość
-        if (stage.getScene() == null) {
-            stage.setScene(new Scene(view.getRootContainer(), 800, 800));
-        } else {
-            stage.getScene().setRoot(view.getRootContainer());
+        if (resume) {
+            try {
+                String json = new String(Files.readAllBytes(new File("autosave_single.json").toPath()));
+                view.loadGameStateFromJson(json);
+            } catch (Exception ex) { ex.printStackTrace(); }
         }
+
+        stage.getScene().setRoot(view.getRootContainer());
     }
 
     private Button createStyledMenuButton(String text) {
         Button btn = new Button(text);
         btn.setPrefSize(120, 60);
-        btn.setStyle(
-                "-fx-background-color: #2e7d32; " +
-                        "-fx-text-fill: white; " +
-                        "-fx-font-weight: bold; " +
-                        "-fx-font-size: 14px; " +
-                        "-fx-background-radius: 10; " +
-                        "-fx-cursor: hand; " +
-                        "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.4), 5, 0, 0, 2);"
-        );
-
-        btn.setOnMouseEntered(e -> btn.setStyle(btn.getStyle() + "-fx-brightness: 1.2; -fx-scale-x: 1.05; -fx-scale-y: 1.05;"));
-        btn.setOnMouseExited(e -> btn.setStyle(btn.getStyle().replace("-fx-brightness: 1.2; -fx-scale-x: 1.05; -fx-scale-y: 1.05;", "")));
-
+        btn.setStyle("-fx-background-color: #2e7d32; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 10; -fx-cursor: hand;");
         return btn;
     }
 
     private void styleSecondaryButton(Button btn) {
-        btn.setStyle(
-                "-fx-background-color: #2e7d32; " +
-                        "-fx-text-fill: white; " +
-                        "-fx-font-size: 14px; " +
-                        "-fx-background-radius: 10; " +
-                        "-fx-min-width: 100px; " +
-                        "-fx-cursor: hand;"
-        );
+        btn.setStyle("-fx-background-color: #1b5e20; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 10; -fx-cursor: hand;");
     }
 }

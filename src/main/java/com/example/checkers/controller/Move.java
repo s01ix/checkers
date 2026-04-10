@@ -20,6 +20,7 @@ public class Move {
         this.gameManager = gameManager;
         this.boardView = boardView;
         this.networkClient = networkClient;
+        this.boardView.setGameManager(gameManager);
         setupClickAndDragHandlers();
     }
 
@@ -31,18 +32,14 @@ public class Move {
                 final int c = col;
                 Button square = buttons[row][col];
 
-                // 1. OBSŁUGA KLIKNIĘĆ (Zwykły wybór)
                 square.setOnAction(event -> handleSquareClick(r, c));
 
-                // 2. OBSŁUGA DRAG & DROP
                 square.setOnDragDetected(event -> {
                     if (gameManager.isSelectable(r, c)) {
                         Dragboard db = square.startDragAndDrop(TransferMode.MOVE);
                         ClipboardContent content = new ClipboardContent();
                         content.putString(r + "," + c);
                         db.setContent(content);
-                    } else {
-                        System.out.println("Nie możesz podnieść tego pionka! Teraz gra: " + gameManager.getCurrentPlayer().getName());
                     }
                     event.consume();
                 });
@@ -63,13 +60,13 @@ public class Move {
                         int fromCol = Integer.parseInt(sourceCoords[1]);
 
                         if (networkClient == null) {
-                            // ===== TRYB LOKALNY =====
+                            String playerName = gameManager.getCurrentPlayer().getName();
                             success = gameManager.performMove(fromRow, fromCol, r, c);
                             if (success) {
                                 boardView.updateView();
+                                boardView.addMoveToLog(fromRow, fromCol, r, c, playerName);
                             }
                         } else {
-                            // ===== TRYB SIECIOWY =====
                             if (networkClient.getMyColor() == gameManager.getCurrentPlayer().getColor()) {
                                 networkClient.sendMove(fromRow, fromCol, r, c);
                                 success = true;
@@ -86,15 +83,10 @@ public class Move {
     private void handleSquareClick(int row, int col) {
         if (selectedRow == -1) {
             if (gameManager.isSelectable(row, col)) {
-                if (networkClient != null && networkClient.getMyColor() != gameManager.getCurrentPlayer().getColor()) {
-                    System.out.println("To nie Twoja tura (Czekasz na: " + gameManager.getCurrentPlayer().getName() + ")");
-                    return;
-                }
-
+                if (networkClient != null && networkClient.getMyColor() != gameManager.getCurrentPlayer().getColor()) return;
                 selectedRow = row;
                 selectedCol = col;
                 highlightSquare(row, col);
-                System.out.println("Zaznaczono: " + row + "," + col);
             }
         } else {
             if (selectedRow == row && selectedCol == col) {
@@ -113,13 +105,15 @@ public class Move {
             }
 
             if (networkClient == null) {
-                boolean moveMade = gameManager.performMove(selectedRow, selectedCol, row, col);
-                if (moveMade) {
+                String playerName = gameManager.getCurrentPlayer().getName();
+                int fromRow = selectedRow;
+                int fromCol = selectedCol;
+                if (gameManager.performMove(selectedRow, selectedCol, row, col)) {
                     boardView.updateView();
+                    boardView.addMoveToLog(fromRow, fromCol, row, col, playerName);
                 }
             } else {
                 if (networkClient.getMyColor() == gameManager.getCurrentPlayer().getColor()) {
-                    System.out.println("Wysyłam ruch do serwera: " + selectedRow + "," + selectedCol + " -> " + row + "," + col);
                     networkClient.sendMove(selectedRow, selectedCol, row, col);
                 }
             }
@@ -131,20 +125,22 @@ public class Move {
     }
 
     private void highlightSquare(int r, int c) {
-        boardView.getButtons()[r][c].setStyle("-fx-border-color: yellow; -fx-border-width: 3;");
-    }
-
-    private void clearHighlight(int r, int c) {
-
         String colorStyle = ((r + c) % 2 == 0) ? ThemeManager.lightSquareColor : ThemeManager.darkSquareColor;
-
         String baseStyle = "-fx-background-color: " + colorStyle + "; " +
                 "-fx-background-insets: 0; " +
                 "-fx-background-radius: 0; " +
-                "-fx-focus-color: transparent; " +
-                "-fx-faint-focus-color: transparent; " +
-                "-fx-border-width: 0;";
+                "-fx-border-color: yellow; " +
+                "-fx-border-width: 3;";
+        boardView.getButtons()[r][c].setStyle(baseStyle);
+    }
 
+    private void clearHighlight(int r, int c) {
+        String colorStyle = ((r + c) % 2 == 0) ? ThemeManager.lightSquareColor : ThemeManager.darkSquareColor;
+        String baseStyle = "-fx-background-color: " + colorStyle + "; " +
+                "-fx-background-insets: 0; " +
+                "-fx-background-radius: 0; " +
+                "-fx-border-color: transparent; " +
+                "-fx-border-width: 3;";
         boardView.getButtons()[r][c].setStyle(baseStyle);
     }
 }
