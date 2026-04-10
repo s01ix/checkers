@@ -54,6 +54,10 @@ public class MainMenuView {
         Label titleLabel = new Label("WARCABY");
         titleLabel.setStyle("-fx-font-size: 48px; -fx-font-weight: bold; -fx-text-fill: white; -fx-padding: 0 0 20 0;");
 
+        // NOWY PRZYCISK: Ustawienia
+        Button settingsBtn = new Button("USTAWIENIA");
+        styleGreenButton(settingsBtn);
+
         Button singlePlayerBtn = new Button("GRA Z KOMPUTEREM");
         styleGreenButton(singlePlayerBtn);
 
@@ -66,6 +70,11 @@ public class MainMenuView {
         Label statusLabel = new Label("");
         statusLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold; -fx-text-alignment: center;");
         statusLabel.setWrapText(true);
+
+        // LOGIKA NOWEGO PRZYCISKU
+        settingsBtn.setOnAction(e -> {
+            new SettingsView(stage, username, password, out, in).show();
+        });
 
         singlePlayerBtn.setOnAction(e -> {
             SinglePlayerMenuView singlePlayerMenu = new SinglePlayerMenuView(stage, username, password);
@@ -102,10 +111,10 @@ public class MainMenuView {
             new LoginView(stage).show();
         });
 
-        menuBox.getChildren().addAll(titleLabel, singlePlayerBtn, multiPlayerBtn, backBtn, statusLabel);
+        // DODANO settingsBtn DO WIDOKU
+        menuBox.getChildren().addAll(titleLabel, settingsBtn, singlePlayerBtn, multiPlayerBtn, backBtn, statusLabel);
         root.getChildren().add(menuBox);
 
-        // NAPRAWA SKALOWANIA
         if (stage.getScene() == null) {
             stage.setScene(new Scene(root, 1000, 600));
         } else {

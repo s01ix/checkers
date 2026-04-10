@@ -4,6 +4,7 @@ import com.example.checkers.model.ComputerPlayer;
 import com.example.checkers.model.GameManager;
 import com.example.checkers.model.Piece;
 import com.example.checkers.view.BoardView;
+import com.example.checkers.view.ThemeManager;
 import javafx.animation.PauseTransition;
 import javafx.scene.control.Button;
 import javafx.util.Duration;
@@ -43,6 +44,24 @@ public class MoveSinglePlayer {
                 highlight(row, col);
             }
         } else {
+
+            if (selectedRow == row && selectedCol == col) {
+                clearHighlight(selectedRow, selectedCol);
+                selectedRow = -1;
+                selectedCol = -1;
+                return;
+            }
+
+
+            if (gameManager.isSelectable(row, col)) {
+                clearHighlight(selectedRow, selectedCol);
+                selectedRow = row;
+                selectedCol = col;
+                highlight(row, col);
+                return;
+            }
+
+
             boolean moved = gameManager.performMove(selectedRow, selectedCol, row, col);
             clearHighlight(selectedRow, selectedCol);
             selectedRow = -1;
@@ -74,7 +93,16 @@ public class MoveSinglePlayer {
     }
 
     private void clearHighlight(int r, int c) {
-        String color = (r + c) % 2 == 0 ? "#f0d9b5" : "#b58863";
-        boardView.getButtons()[r][c].setStyle("-fx-background-color: " + color + ";");
+
+        String colorStyle = ((r + c) % 2 == 0) ? ThemeManager.lightSquareColor : ThemeManager.darkSquareColor;
+
+        String baseStyle = "-fx-background-color: " + colorStyle + "; " +
+                "-fx-background-insets: 0; " +
+                "-fx-background-radius: 0; " +
+                "-fx-focus-color: transparent; " +
+                "-fx-faint-focus-color: transparent; " +
+                "-fx-border-width: 0;";
+
+        boardView.getButtons()[r][c].setStyle(baseStyle);
     }
 }

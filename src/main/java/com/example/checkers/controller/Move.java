@@ -3,6 +3,7 @@ package com.example.checkers.controller;
 import com.example.checkers.model.GameManager;
 import com.example.checkers.network.NetworkClient;
 import com.example.checkers.view.BoardView;
+import com.example.checkers.view.ThemeManager;
 import javafx.scene.control.Button;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.Dragboard;
@@ -21,6 +22,7 @@ public class Move {
         this.networkClient = networkClient;
         setupClickAndDragHandlers();
     }
+
     private void setupClickAndDragHandlers() {
         Button[][] buttons = boardView.getButtons();
         for (int row = 0; row < buttons.length; row++) {
@@ -32,9 +34,8 @@ public class Move {
                 // 1. OBSŁUGA KLIKNIĘĆ (Zwykły wybór)
                 square.setOnAction(event -> handleSquareClick(r, c));
 
-                // 2. OBSŁUGA DRAG & DROP (Z Twojej starej klasy Move!)
+                // 2. OBSŁUGA DRAG & DROP
                 square.setOnDragDetected(event -> {
-                    // Sprawdzamy w czystym GameManagerze, czy gracz może ruszyć tym pionkiem
                     if (gameManager.isSelectable(r, c)) {
                         Dragboard db = square.startDragAndDrop(TransferMode.MOVE);
                         ClipboardContent content = new ClipboardContent();
@@ -71,7 +72,7 @@ public class Move {
                             // ===== TRYB SIECIOWY =====
                             if (networkClient.getMyColor() == gameManager.getCurrentPlayer().getColor()) {
                                 networkClient.sendMove(fromRow, fromCol, r, c);
-                                success = true; // Pozwalamy na upuszczenie, serwer to i tak zweryfikuje
+                                success = true;
                             }
                         }
                     }
@@ -84,9 +85,7 @@ public class Move {
 
     private void handleSquareClick(int row, int col) {
         if (selectedRow == -1) {
-            // --- ETAP 1: WYBÓR PIONKA ---
             if (gameManager.isSelectable(row, col)) {
-                // Blokada w trybie sieciowym: nie możesz dotknąć pionka, jeśli to nie Twój kolor
                 if (networkClient != null && networkClient.getMyColor() != gameManager.getCurrentPlayer().getColor()) {
                     System.out.println("To nie Twoja tura (Czekasz na: " + gameManager.getCurrentPlayer().getName() + ")");
                     return;
@@ -98,9 +97,6 @@ public class Move {
                 System.out.println("Zaznaczono: " + row + "," + col);
             }
         } else {
-            // --- ETAP 2: PRÓBA RUCHU LUB ZMIANA WYBORU ---
-
-            // 1. Jeśli kliknąłeś ponownie w ten sam pionek -> Odznaczamy
             if (selectedRow == row && selectedCol == col) {
                 clearHighlight(selectedRow, selectedCol);
                 selectedRow = -1;
@@ -108,7 +104,6 @@ public class Move {
                 return;
             }
 
-            // 2. Jeśli kliknąłeś w INNY swój pionek -> Zmieniamy zaznaczenie na nowy
             if (gameManager.isSelectable(row, col)) {
                 clearHighlight(selectedRow, selectedCol);
                 selectedRow = row;
@@ -117,25 +112,18 @@ public class Move {
                 return;
             }
 
-            // 3. Jeśli kliknąłeś w puste pole (lub pole przeciwnika) -> Próbujemy wykonać ruch
             if (networkClient == null) {
-                // ===== TRYB LOKALNY =====
                 boolean moveMade = gameManager.performMove(selectedRow, selectedCol, row, col);
                 if (moveMade) {
                     boardView.updateView();
                 }
             } else {
-                // ===== TRYB SIECIOWY =====
-                // Sprawdzamy czy na pewno tura należy do nas
                 if (networkClient.getMyColor() == gameManager.getCurrentPlayer().getColor()) {
                     System.out.println("Wysyłam ruch do serwera: " + selectedRow + "," + selectedCol + " -> " + row + "," + col);
                     networkClient.sendMove(selectedRow, selectedCol, row, col);
-                    // UWAGA: Nie robimy tu boardView.updateView()!
-                    // Czekamy, aż serwer odeśle komendę UPDATE do NetworkClient.
                 }
             }
 
-            // Po próbie ruchu (udanej lub nie) czyścimy zaznaczenie
             clearHighlight(selectedRow, selectedCol);
             selectedRow = -1;
             selectedCol = -1;
@@ -147,11 +135,16 @@ public class Move {
     }
 
     private void clearHighlight(int r, int c) {
-        // Przywracamy podstawowy styl na podstawie koloru pola
-        if ((r + c) % 2 == 0) {
-            boardView.getButtons()[r][c].setStyle("-fx-background-color: #f0d9b5; -fx-border-width: 0;");
-        } else {
-            boardView.getButtons()[r][c].setStyle("-fx-background-color: #b58863; -fx-border-width: 0;");
-        }
+
+        String colorStyle = ((r + c) % 2 == 0) ? ThemeManager.lightSquareColor : ThemeManager.darkSquareColor;
+
+        String baseStyle = "-fx-background-color: " + colorStyle + "; " +
+                "-fx-background-insets: 0; " +
+                "-fx-background-radius: 0; " +
+                "-fx-focus-color: transparent; " +
+                "-fx-faint-focus-color: transparent; " +
+                "-fx-border-width: 0;";
+
+        boardView.getButtons()[r][c].setStyle(baseStyle);
     }
 }
