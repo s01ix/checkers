@@ -1,0 +1,12 @@
+WHITE
+2
+0,BP,0,BP,0,BP,0,BP
+BP,0,BP,0,BP,0,BP,0
+0,0,0,BP,0,BP,0,BP
+BP,0,0,0,0,0,0,0
+0,0,0,0,0,0,0,WP
+WP,0,WP,0,WP,0,0,0
+0,WP,0,WP,0,WP,0,WP
+WP,0,WP,0,WP,0,WP,0
+LOG:Komputer: A8 -> A8
+LOG:Biały   : G3 -> H4
