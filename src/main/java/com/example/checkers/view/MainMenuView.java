@@ -19,29 +19,25 @@ import java.io.IOException;
 public class MainMenuView {
     private final Stage stage;
     private final String username;
-    private String password;
-    private PrintWriter out;
-    private BufferedReader in;
+    private final String password;
 
     public MainMenuView(Stage stage, String username, String password) {
-        this.stage = stage;
+        this.stage    = stage;
         this.username = username;
         this.password = password;
-    }
-    public MainMenuView(Stage stage, String username, PrintWriter out, BufferedReader in){
-        this.stage = stage;
-        this.username = username;
-        this.out = out;
-        this.in = in;
     }
 
     public void show() {
         StackPane root = new StackPane();
         try {
-            String imagePath = getClass().getResource("/com/example/checkers/pieces/background.png").toExternalForm();
-            root.setStyle("-fx-background-image: url('" + imagePath + "'); " +
-                    "-fx-background-size: cover; " +
-                    "-fx-background-position: center;");
+            String imagePath = getClass()
+                    .getResource("/com/example/checkers/pieces/background.png")
+                    .toExternalForm();
+            root.setStyle(
+                    "-fx-background-image: url('" + imagePath + "'); " +
+                            "-fx-background-size: cover; " +
+                            "-fx-background-position: center;"
+            );
         } catch (Exception e) {
             root.setStyle("-fx-background-color: #4b2e1e;");
         }
@@ -52,67 +48,76 @@ public class MainMenuView {
         menuBox.setPadding(new Insets(30));
 
         Label titleLabel = new Label("WARCABY");
-        titleLabel.setStyle("-fx-font-size: 48px; -fx-font-weight: bold; -fx-text-fill: white; -fx-padding: 0 0 20 0;");
+        titleLabel.setStyle(
+                "-fx-font-size: 48px; -fx-font-weight: bold; " +
+                        "-fx-text-fill: white; -fx-padding: 0 0 20 0;"
+        );
 
-        // NOWY PRZYCISK: Ustawienia
-        Button settingsBtn = new Button("USTAWIENIA");
-        styleGreenButton(settingsBtn);
-
+        Button settingsBtn    = new Button("USTAWIENIA");
         Button singlePlayerBtn = new Button("GRA Z KOMPUTEREM");
+        Button multiPlayerBtn  = new Button("GRA WIELOOSOBOWA");
+        Button backBtn         = new Button("WYLOGUJ");
+
+        styleGreenButton(settingsBtn);
         styleGreenButton(singlePlayerBtn);
-
-        Button multiPlayerBtn = new Button("GRA WIELOOSOBOWA");
         styleGreenButton(multiPlayerBtn);
-
-        Button backBtn = new Button("WYLOGUJ");
         styleSecondaryButton(backBtn);
 
         Label statusLabel = new Label("");
-        statusLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold; -fx-text-alignment: center;");
+        statusLabel.setStyle(
+                "-fx-text-fill: white; -fx-font-weight: bold; -fx-text-alignment: center;"
+        );
         statusLabel.setWrapText(true);
 
-        // LOGIKA NOWEGO PRZYCISKU
-        settingsBtn.setOnAction(e -> {
-            new SettingsView(stage, username, password, out, in).show();
-        });
+        settingsBtn.setOnAction(e ->
+                new SettingsView(stage, username, password, null, null).show()
+        );
 
-        singlePlayerBtn.setOnAction(e -> {
-            SinglePlayerMenuView singlePlayerMenu = new SinglePlayerMenuView(stage, username, password);
-            singlePlayerMenu.show();
-        });
+        singlePlayerBtn.setOnAction(e ->
+                new SinglePlayerMenuView(stage, username, password).show()
+        );
 
         multiPlayerBtn.setOnAction(e -> {
             statusLabel.setText("Łączenie z serwerem...");
+            multiPlayerBtn.setDisable(true);
 
             new Thread(() -> {
                 try {
                     Socket socket = new Socket("127.0.0.1", 12345);
                     PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-                    BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                    BufferedReader in = new BufferedReader(
+                            new InputStreamReader(socket.getInputStream())
+                    );
 
                     out.println("LOGIN " + username + " " + password);
                     String response = in.readLine();
 
                     if ("LOGIN_SUCCESS".equals(response)) {
                         Platform.runLater(() -> {
-                            LobbyView lobby = new LobbyView(stage, username, out, in);
-                            lobby.show();
+                            multiPlayerBtn.setDisable(false);
+                            new LobbyView(stage, username, password, out, in).show();
                         });
                     } else {
-                        Platform.runLater(() -> statusLabel.setText("Błąd logowania!"));
+                        Platform.runLater(() -> {
+                            multiPlayerBtn.setDisable(false);
+                            statusLabel.setText("Błąd logowania: " + response);
+                        });
                     }
                 } catch (IOException ex) {
-                    Platform.runLater(() -> statusLabel.setText("Nie znaleziono serwera!"));
+                    Platform.runLater(() -> {
+                        multiPlayerBtn.setDisable(false);
+                        statusLabel.setText("Nie znaleziono serwera!");
+                    });
                 }
             }).start();
         });
 
-        backBtn.setOnAction(e -> {
-            new LoginView(stage).show();
-        });
+        backBtn.setOnAction(e -> new LoginView(stage).show());
 
-        // DODANO settingsBtn DO WIDOKU
-        menuBox.getChildren().addAll(titleLabel, settingsBtn, singlePlayerBtn, multiPlayerBtn, backBtn, statusLabel);
+        menuBox.getChildren().addAll(
+                titleLabel, settingsBtn, singlePlayerBtn,
+                multiPlayerBtn, backBtn, statusLabel
+        );
         root.getChildren().add(menuBox);
 
         if (stage.getScene() == null) {
@@ -135,8 +140,6 @@ public class MainMenuView {
                         "-fx-background-radius: 15; " +
                         "-fx-cursor: hand;"
         );
-        btn.setOnMouseEntered(e -> btn.setStyle(btn.getStyle() + "-fx-background-color: #388e3c;"));
-        btn.setOnMouseExited(e -> btn.setStyle(btn.getStyle().replace("-fx-background-color: #388e3c;", "")));
     }
 
     private void styleSecondaryButton(Button btn) {

@@ -389,4 +389,20 @@ public class GameManager {
         Piece piece = board.getPiece(row, col);
         return piece != null && piece.getType() == currentPlayer.getColor();
     }
+    public void resetGame() {
+        // Tworzymy nową planszę z pionkami na pozycjach startowych
+        Board newBoard = new Board();
+        // Kopiujemy pola nowej planszy do obecnej
+        for (int r = 0; r < Board.SIZE; r++) {
+            for (int c = 0; c < Board.SIZE; c++) {
+                board.setPiece(r, c, newBoard.getPiece(r, c));
+            }
+        }
+        this.currentPlayer      = playerWhite;
+        this.isMultiCapturing   = false;
+        this.multiCaptureRow    = -1;
+        this.multiCaptureCol    = -1;
+        this.movesWithoutCapture = 0;
+        this.positionHistory.clear();
+    }
 }

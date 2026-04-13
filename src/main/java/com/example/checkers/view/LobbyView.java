@@ -12,26 +12,35 @@ import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.stage.Stage;
+
 import java.io.BufferedReader;
 import java.io.PrintWriter;
 
 public class LobbyView {
     private final Stage stage;
     private final String username;
+    private final String password;
     private final PrintWriter out;
     private final BufferedReader in;
 
-    public LobbyView(Stage stage, String username, PrintWriter out, BufferedReader in) {
-        this.stage = stage;
+    public LobbyView(Stage stage, String username, String password,
+                     PrintWriter out, BufferedReader in) {
+        this.stage    = stage;
         this.username = username;
-        this.in = in;
-        this.out = out;
+        this.password = password;
+        this.out      = out;
+        this.in       = in;
     }
 
     public void show() {
         StackPane root = new StackPane();
-        String imagePath = getClass().getResource("/com/example/checkers/pieces/background.png").toExternalForm();
-        root.setStyle("-fx-background-image: url('" + imagePath + "'); -fx-background-size: cover;");
+        String imagePath = getClass()
+                .getResource("/com/example/checkers/pieces/background.png")
+                .toExternalForm();
+        root.setStyle(
+                "-fx-background-image: url('" + imagePath + "'); " +
+                        "-fx-background-size: cover;"
+        );
 
         VBox layout = new VBox(20);
         layout.setAlignment(Pos.CENTER);
@@ -39,7 +48,9 @@ public class LobbyView {
         layout.setMaxWidth(600);
 
         Label title = new Label("LOBBY GIER");
-        title.setStyle("-fx-font-size: 32px; -fx-text-fill: white; -fx-font-weight: bold;");
+        title.setStyle(
+                "-fx-font-size: 32px; -fx-text-fill: white; -fx-font-weight: bold;"
+        );
 
         ListView<String> roomList = new ListView<>();
         roomList.setPrefHeight(300);
@@ -48,25 +59,23 @@ public class LobbyView {
         HBox controls = new HBox(20);
         controls.setAlignment(Pos.CENTER);
 
-        Button createBtn = new Button("STWÓRZ POKÓJ");
-        styleGreenButton(createBtn);
-
-        Button joinBtn = new Button("DOŁĄCZ");
-        styleGreenButton(joinBtn);
-
+        Button createBtn  = new Button("STWÓRZ POKÓJ");
+        Button joinBtn    = new Button("DOŁĄCZ");
         Button refreshBtn = new Button("ODŚWIEŻ");
-        styleGreenButton(refreshBtn);
+        Button backBtn    = new Button("POWRÓT");
 
-        Button backBtn = new Button("POWRÓT");
+        styleGreenButton(createBtn);
+        styleGreenButton(joinBtn);
+        styleGreenButton(refreshBtn);
         styleGreenButton(backBtn);
 
         controls.getChildren().addAll(createBtn, joinBtn, refreshBtn, backBtn);
 
         backBtn.setOnAction(e -> {
-            if(out != null){
+            if (out != null) {
                 out.println("LEAVE_LOBBY");
             }
-            new MainMenuView(stage, username, out, in).show();
+            new MainMenuView(stage, username, password).show();
         });
 
         createBtn.setOnAction(e -> {
@@ -88,7 +97,9 @@ public class LobbyView {
                     if (response != null && response.equals("CONNECTED WHITE")) {
                         launchGame("WHITE");
                     }
-                } catch (Exception ex) { ex.printStackTrace(); }
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
             }).start();
         });
 
@@ -97,7 +108,7 @@ public class LobbyView {
                 out.println("GET_ROOMS");
                 try {
                     String response = in.readLine();
-                    if (response.startsWith("ROOM_LIST ")) {
+                    if (response != null && response.startsWith("ROOM_LIST ")) {
                         String data = response.substring(10);
                         String[] rooms = data.split(";");
 
@@ -108,7 +119,9 @@ public class LobbyView {
                             }
                         });
                     }
-                } catch (Exception ex) { ex.printStackTrace(); }
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
             }).start();
         });
 
@@ -117,21 +130,21 @@ public class LobbyView {
             if (selected != null) {
                 new Thread(() -> {
                     try {
-                        String roomId = selected.split(":")[0];
+                        String[] parts = selected.split(":");
+                        String roomId = parts[0].trim();
 
                         out.println("JOIN_ROOM " + roomId);
-                        System.out.println("Wysłano prośbę o dołączenie do pokoju: " + roomId);
+                        System.out.println("Wysłano prośbę o dołączenie: " + roomId);
 
                         String response = in.readLine();
                         if (response != null && response.equals("CONNECTED BLACK")) {
-                            System.out.println("Serwer zaakceptował dołączenie. Start gry!");
-
+                            System.out.println("Serwer zaakceptował. Start gry!");
                             launchGame("BLACK");
                         } else {
                             System.out.println("Błąd dołączania: " + response);
                         }
                     } catch (Exception ex) {
-                        System.err.println("Błąd podczas dołączania do pokoju: " + ex.getMessage());
+                        System.err.println("Błąd dołączania: " + ex.getMessage());
                     }
                 }).start();
             }
@@ -139,7 +152,6 @@ public class LobbyView {
 
         layout.getChildren().addAll(title, roomList, controls);
         root.getChildren().add(layout);
-
 
         if (stage.getScene() == null) {
             stage.setScene(new Scene(root, 1000, 600));
@@ -149,24 +161,66 @@ public class LobbyView {
     }
 
     private void styleGreenButton(Button btn) {
-        btn.setStyle("-fx-background-color: #2e7d32; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 10; -fx-cursor: hand;");
+        btn.setStyle(
+                "-fx-background-color: #2e7d32; -fx-text-fill: white; " +
+                        "-fx-font-weight: bold; -fx-background-radius: 10; -fx-cursor: hand;"
+        );
         btn.setPrefSize(150, 40);
     }
 
     private void launchGame(String color) {
         Platform.runLater(() -> {
-            Board boardModel = new Board();
+            Board boardModel     = new Board();
             GameManager gameManager = new GameManager(boardModel);
-            BoardView boardView = new BoardView(boardModel);
+            BoardView boardView  = new BoardView(boardModel);
 
             if ("BLACK".equalsIgnoreCase(color)) {
                 boardView.flipBoard();
             }
 
-            NetworkClient networkClient = new NetworkClient(out, in, gameManager, boardView, username, color);
+            NetworkClient networkClient = new NetworkClient(
+                    out, in, gameManager, boardView, username, color
+            );
 
-            Move Move = new Move(gameManager, boardView, networkClient);
+            boardView.setSurrenderAction(() -> {
+                Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+                confirm.setTitle("Poddanie");
+                confirm.setHeaderText("Czy na pewno chcesz się poddać?");
 
+                ButtonType tak = new ButtonType("Tak, poddaję się", ButtonBar.ButtonData.YES);
+                ButtonType nie = new ButtonType("Nie, gram dalej",  ButtonBar.ButtonData.NO);
+                confirm.getButtonTypes().setAll(tak, nie);
+
+                confirm.showAndWait().ifPresent(response -> {
+                    if (response == tak) {
+                        boardView.disableBoard();
+                        networkClient.sendSurrender();
+                        Alert info = new Alert(Alert.AlertType.INFORMATION);
+                        info.setTitle("Poddano partię");
+                        info.setHeaderText("Poddałeś partię");
+                        info.setContentText(
+                                "Możesz teraz zapisać grę, zagrać ponownie lub opuścić."
+                        );
+                        info.showAndWait();
+                    }
+                });
+            });
+
+            boardView.setDrawAction(() ->
+                    networkClient.sendDrawRequest()
+            );
+
+            boardView.setRematchAction(() ->
+                    networkClient.sendRematchRequest()
+            );
+
+            boardView.setLeaveAction(() -> {
+                networkClient.sendLeave();
+                // Nowe połączenie nawiąże MainMenuView przy "GRA WIELOOSOBOWA"
+                new MainMenuView(stage, username, password).show();
+            });
+
+            new Move(gameManager, boardView, networkClient);
 
             if (stage.getScene() == null) {
                 stage.setScene(new Scene(boardView.getRootContainer(), 800, 800));

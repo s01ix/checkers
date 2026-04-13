@@ -26,6 +26,8 @@ public class BoardView {
     private boolean isFlipped = false;
     private com.example.checkers.model.GameManager gameManager;
 
+    private Button surrenderBtn, drawBtn, rematchBtn, leaveBtn;
+
     public BoardView(Board boardModel) {
         this.boardModel = boardModel;
         this.gridPane = new GridPane();
@@ -55,18 +57,54 @@ public class BoardView {
         Button saveBtn = new Button("ZAPISZ GRĘ");
         Button loadBtn = new Button("WCZYTAJ GRĘ");
         Button deleteBtn = new Button("USUŃ ZAPIS");
+
+        this.surrenderBtn = new Button("PODDAJ SIĘ");
+        this.drawBtn = new Button("REMIS");
+        this.rematchBtn = new Button("REWANŻ");
+        this.leaveBtn = new Button("OPUŚĆ");
+
+        rematchBtn.setDisable(true);
+
         styleControlBtn(saveBtn);
         styleControlBtn(loadBtn);
         styleControlBtn(deleteBtn);
+        styleControlBtn(surrenderBtn);
+        styleControlBtn(drawBtn);
+        styleControlBtn(rematchBtn);
+        styleControlBtn(leaveBtn);
+
+        surrenderBtn.setOnAction(e -> surrenderGame());
 
         saveBtn.setOnAction(e -> saveGame(saveBtn));
         loadBtn.setOnAction(e -> loadGame(loadBtn));
         deleteBtn.setOnAction(e -> deleteGame(deleteBtn));
 
-        sidePanel.getChildren().addAll(logLabel, moveLog, saveBtn, loadBtn, deleteBtn);
+        sidePanel.getChildren().addAll(logLabel, moveLog, saveBtn, loadBtn, deleteBtn, surrenderBtn, drawBtn, rematchBtn, leaveBtn);
         this.rootContainer.getChildren().addAll(boardWrapper, sidePanel);
 
         initializeBoardUI();
+    }
+
+    public void setSurrenderAction(Runnable action) {
+        surrenderBtn.setOnAction(e -> action.run());
+    }
+
+    public void setDrawAction(Runnable action) {
+        drawBtn.setOnAction(e -> action.run());
+    }
+
+    public void setRematchAction(Runnable action) {
+        rematchBtn.setOnAction(e -> action.run());
+    }
+
+    public void setLeaveAction(Runnable action) {
+        leaveBtn.setOnAction(e -> action.run());
+    }
+
+    private void surrenderGame() {
+        System.out.println("[DEBUG] Kliknięto 'PODDAJ SIĘ'");
+        System.out.println("[DEBUG] Gra zakończona pomyślnie - wyłączam planszę");
+        disableBoard();
     }
 
     public void setGameManager(com.example.checkers.model.GameManager gm) {
@@ -231,5 +269,21 @@ public class BoardView {
         gridPane.setRotate(180);
         this.isFlipped = true;
         updateView();
+    }
+    public void clearMoveLog() {
+        moveLog.getItems().clear();
+    }
+    public void disableBoard() {
+        gridPane.setDisable(true);
+        surrenderBtn.setDisable(true);
+        drawBtn.setDisable(true);
+        rematchBtn.setDisable(false);
+    }
+
+    public void enableBoard() {
+        gridPane.setDisable(false);
+        surrenderBtn.setDisable(false);
+        drawBtn.setDisable(false);
+        rematchBtn.setDisable(true);
     }
 }

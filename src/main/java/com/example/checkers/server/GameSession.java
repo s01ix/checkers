@@ -10,19 +10,22 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
 
-public class GameSession extends Thread{
+public class GameSession extends Thread {
     private final Socket playerWhiteSocket;
     private final Socket playerBlackSocket;
 
-    private final Board board;
-    private final GameManager gameManager;
+    private Board board;
+    private GameManager gameManager;
 
     private PrintWriter outWhite;
     private BufferedReader inWhite;
     private PrintWriter outBlack;
     private BufferedReader inBlack;
 
-    public GameSession(Socket playerWhiteSocket, Socket playerBlackSocket){
+    private volatile boolean gameActive = true;
+    private volatile boolean gameEnded = false;
+
+    public GameSession(Socket playerWhiteSocket, Socket playerBlackSocket) {
         this.playerWhiteSocket = playerWhiteSocket;
         this.playerBlackSocket = playerBlackSocket;
         this.board = new Board();
@@ -30,85 +33,132 @@ public class GameSession extends Thread{
     }
 
     @Override
-    public void run(){
+    public void run() {
         try {
-            outWhite = new PrintWriter(playerWhiteSocket.getOutputStream(),true);
-            inWhite = new BufferedReader(new InputStreamReader(playerWhiteSocket.getInputStream()));
-
-            outBlack = new PrintWriter(playerBlackSocket.getOutputStream(),true);
-            inBlack = new BufferedReader(new InputStreamReader(playerBlackSocket.getInputStream()));
+            outWhite = new PrintWriter(playerWhiteSocket.getOutputStream(), true);
+            inWhite  = new BufferedReader(new InputStreamReader(playerWhiteSocket.getInputStream()));
+            outBlack = new PrintWriter(playerBlackSocket.getOutputStream(), true);
+            inBlack  = new BufferedReader(new InputStreamReader(playerBlackSocket.getInputStream()));
 
             System.out.println("Sesja gry wystartowała");
-            //Wysyłamy sygnał do obu graczy że gra się rozpoczeła
             outWhite.println("Start");
             outBlack.println("Start");
-            //Główna pętla
-            while (true){
-                //sprawdzamy czyja kolej
-                boolean isWhiteTurn = (gameManager.getCurrentPlayer().getColor()==Piece.PieceType.WHITE);
 
-                String command;
-                if (isWhiteTurn){
-                    //Czekamy aż biały wyśle ruch
-                    command = inWhite.readLine();
-                }else {
-                    //Czekamy aż czarny wyśle ruch
-                    command = inBlack.readLine();
-                }
+            Thread whiteListenerThread = new Thread(() -> listenToPlayer(inWhite, true));
+            Thread blackListenerThread = new Thread(() -> listenToPlayer(inBlack, false));
 
-                //Zgłoszenie rozłączenia
-                if(command == null){
-                    System.out.println("Jeden z graczy się rozłączył.");
-                    break;
-                }
+            whiteListenerThread.start();
+            blackListenerThread.start();
 
-                System.out.println("Otrzymano komendę: " + command);
-                processCommand(command, isWhiteTurn);
-            }
-        }catch (IOException e) {
+            whiteListenerThread.join();
+            blackListenerThread.join();
+
+        } catch (IOException | InterruptedException e) {
             System.out.println("Błąd połączenia w sesji gry: " + e.getMessage());
-        }finally {
-            // Sprzątamy po zakończeniu gry
-            try {
-                playerWhiteSocket.close();
-                playerBlackSocket.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+        } finally {
+            gameActive = false;
+            closeQuietly(playerWhiteSocket);
+            closeQuietly(playerBlackSocket);
         }
     }
-    //funkcja zmeiniająca tekst na wywołanie metody w GameMenager
-    private void processCommand(String command, boolean wasWhiteTurn){
-        // Spodziewamy się komendy w stylu: "MOVE 5 4 4 5"
+
+    private void listenToPlayer(BufferedReader in, boolean isWhitePlayer) {
+        try {
+            String command;
+            while (gameActive && (command = in.readLine()) != null) {
+                System.out.println("Otrzymano od " + (isWhitePlayer ? "WHITE" : "BLACK") + ": " + command);
+                processCommand(command, isWhitePlayer);
+            }
+        } catch (IOException e) {
+            System.out.println("Gracz " + (isWhitePlayer ? "WHITE" : "BLACK") + " się rozłączył.");
+        } finally {
+            gameActive = false;
+            try {
+                if (isWhitePlayer) {
+                    playerBlackSocket.close();
+                } else {
+                    playerWhiteSocket.close();
+                }
+            } catch (IOException ignored) {}
+        }
+    }
+
+    private synchronized void processCommand(String command, boolean isWhitePlayer) {
+        PrintWriter myOut  = isWhitePlayer ? outWhite : outBlack;
+        PrintWriter oppOut = isWhitePlayer ? outBlack  : outWhite;
+
         if (command.startsWith("MOVE")) {
+            if (gameEnded) {
+                myOut.println("GAME_ENDED");
+                return;
+            }
+
+            boolean isWhiteTurn =
+                    (gameManager.getCurrentPlayer().getColor() == Piece.PieceType.WHITE);
+
+            if (isWhitePlayer != isWhiteTurn) {
+                myOut.println("NOT_YOUR_TURN");
+                return;
+            }
+
             String[] parts = command.split(" ");
             if (parts.length == 5) {
                 try {
                     int fromRow = Integer.parseInt(parts[1]);
                     int fromCol = Integer.parseInt(parts[2]);
-                    int toRow = Integer.parseInt(parts[3]);
-                    int toCol = Integer.parseInt(parts[4]);
+                    int toRow   = Integer.parseInt(parts[3]);
+                    int toCol   = Integer.parseInt(parts[4]);
 
-                    // Pytamy naszego czystego GameManagera czy ten ruch jest legalny
                     boolean success = gameManager.performMove(fromRow, fromCol, toRow, toCol);
-
                     if (success) {
-                        // Jeśli ruch się udał, rozsyłamy go do OBU graczy, żeby zaktualizowali swoje ekrany!
-                        String updateMsg = "UPDATE " + fromRow + " " + fromCol + " " + toRow + " " + toCol;
-                        outWhite.println(updateMsg);
-                        outBlack.println(updateMsg);
+                        String update = "UPDATE " + fromRow + " " + fromCol
+                                + " " + toRow  + " " + toCol;
+                        outWhite.println(update);
+                        outBlack.println(update);
                     } else {
-                        // Jeśli gracz oszukuje lub się pomylił, wysyłamy błąd tylko do niego
-                        if (wasWhiteTurn) {
-                            outWhite.println("INVALID_MOVE");
-                        } else {
-                            outBlack.println("INVALID_MOVE");
-                        }
+                        myOut.println("INVALID_MOVE");
                     }
                 } catch (NumberFormatException e) {
-                    System.err.println("Błędny format liczb w komendzie MOVE");
+                    System.err.println("Błędny format MOVE");
                 }
             }
-        }
+
+        } else if (command.equals("SURRENDER")) {
+            oppOut.println("OPPONENT_SURRENDERED");
+            gameEnded = true;
+
+        } else if (command.equals("DRAW_REQUEST")) {
+            oppOut.println("DRAW_REQUEST");
+
+        } else if (command.equals("DRAW_ACCEPT")) {
+            outWhite.println("DRAW_ACCEPTED");
+            outBlack.println("DRAW_ACCEPTED");
+            gameEnded = true;
+        } else if (command.equals("DRAW_DECLINE")) {
+            oppOut.println("DRAW_DECLINED");
+
+        } else if (command.equals("REMATCH_REQUEST")) {
+            if (gameEnded) {
+                oppOut.println("REMATCH_REQUEST");
+            }
+
+        } else if (command.equals("REMATCH_ACCEPT")) {
+            oppOut.println("REMATCH_ACCEPTED");
+            gameManager.resetGame();
+            gameEnded = false;
+            System.out.println("Rewanż zaakceptowany - nowa gra!");
+
+        } else if (command.equals("REMATCH_DECLINE")) {
+            oppOut.println("REMATCH_DECLINED");
+
+        } else if (command.equals("LEAVE")) {
+            oppOut.println("OPPONENT_LEFT");
+            gameActive = false;         }
+    }
+
+    private void closeQuietly(Socket s) {
+        try {
+            if (s != null && !s.isClosed()) s.close();
+        } catch (IOException ignored) {}
     }
 }
