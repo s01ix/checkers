@@ -35,7 +35,7 @@ public class Move {
                 square.setOnAction(event -> handleSquareClick(r, c));
 
                 square.setOnDragDetected(event -> {
-                    if (boardView.getButtons()[0][0].getParent().isDisabled()) { event.consume(); return; }
+                    if (square.isDisabled() || square.getParent().isDisabled()) return;
                     if (gameManager.isSelectable(r, c)) {
                         Dragboard db = square.startDragAndDrop(TransferMode.MOVE);
                         ClipboardContent content = new ClipboardContent();
@@ -55,7 +55,7 @@ public class Move {
                 square.setOnDragDropped(event -> {
                     Dragboard db = event.getDragboard();
                     boolean success = false;
-                    if (db.hasString() && !boardView.getButtons()[0][0].getParent().isDisabled()) {
+                    if (db.hasString() && !square.getParent().isDisabled()) {
                         String[] sourceCoords = db.getString().split(",");
                         int fromRow = Integer.parseInt(sourceCoords[0]);
                         int fromCol = Integer.parseInt(sourceCoords[1]);
@@ -82,7 +82,7 @@ public class Move {
     }
 
     private void handleSquareClick(int row, int col) {
-        if (boardView.getButtons()[0][0].getParent().isDisabled()) return;
+        if (boardView.getButtons()[row][col].isDisabled() || boardView.getButtons()[row][col].getParent().isDisabled()) return;
 
         if (selectedRow == -1) {
             if (gameManager.isSelectable(row, col)) {
