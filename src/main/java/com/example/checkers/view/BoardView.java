@@ -4,6 +4,7 @@ import com.example.checkers.model.Board;
 import com.example.checkers.model.Piece;
 import javafx.animation.PauseTransition;
 import javafx.beans.binding.Bindings;
+import javafx.beans.binding.NumberBinding;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
@@ -24,9 +25,13 @@ public class BoardView {
     private final ListView<String> moveLog;
     private final Button[][] buttons = new Button[Board.SIZE][Board.SIZE];
     private boolean isFlipped = false;
+    private boolean isSinglePlayer = false;
     private com.example.checkers.model.GameManager gameManager;
 
-    private Button surrenderBtn, drawBtn, rematchBtn, leaveBtn;
+    private final Button surrenderBtn;
+    private final Button drawBtn;
+    private final Button rematchBtn;
+    private final Button leaveBtn;
 
     public BoardView(Board boardModel) {
         this.boardModel = boardModel;
@@ -38,21 +43,29 @@ public class BoardView {
         this.rootContainer.setPadding(new Insets(20));
         this.rootContainer.setAlignment(Pos.CENTER);
 
+        this.gridPane.setMinSize(0, 0);
+
         StackPane boardWrapper = new StackPane(gridPane);
+        boardWrapper.setAlignment(Pos.CENTER);
         HBox.setHgrow(boardWrapper, Priority.ALWAYS);
-        gridPane.maxWidthProperty().bind(Bindings.min(boardWrapper.widthProperty(), boardWrapper.heightProperty()));
-        gridPane.maxHeightProperty().bind(Bindings.min(boardWrapper.widthProperty(), boardWrapper.heightProperty()));
+
+        NumberBinding boardSize = Bindings.min(boardWrapper.widthProperty(), boardWrapper.heightProperty());
+        gridPane.maxWidthProperty().bind(boardSize);
+        gridPane.maxHeightProperty().bind(boardSize);
+        gridPane.prefWidthProperty().bind(boardSize);
+        gridPane.prefHeightProperty().bind(boardSize);
 
         VBox sidePanel = new VBox(10);
-        sidePanel.setPrefWidth(250);
+        sidePanel.setMinWidth(200);
+        sidePanel.prefWidthProperty().bind(rootContainer.widthProperty().multiply(0.3));
+        sidePanel.styleProperty().bind(Bindings.concat("-fx-font-size: ", rootContainer.heightProperty().divide(45), "px;"));
         sidePanel.setAlignment(Pos.TOP_CENTER);
 
         Label logLabel = new Label("HISTORIA RUCHÓW");
-        logLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 16px;");
+        logLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold;");
 
-        moveLog.setPrefHeight(400);
-        moveLog.setStyle("-fx-background-color: #3e2716; -fx-control-inner-background: #3e2716; " +
-                "-fx-text-fill: #f0d9b5; -fx-font-family: 'Courier New'; -fx-font-size: 14px;");
+        VBox.setVgrow(moveLog, Priority.ALWAYS);
+        moveLog.setStyle("-fx-background-color: #3e2716; -fx-control-inner-background: #3e2716; -fx-text-fill: #f0d9b5; -fx-font-family: 'Courier New';");
 
         Button saveBtn = new Button("ZAPISZ GRĘ");
         Button loadBtn = new Button("WCZYTAJ GRĘ");
@@ -73,8 +86,6 @@ public class BoardView {
         styleControlBtn(rematchBtn);
         styleControlBtn(leaveBtn);
 
-        surrenderBtn.setOnAction(e -> surrenderGame());
-
         saveBtn.setOnAction(e -> saveGame(saveBtn));
         loadBtn.setOnAction(e -> loadGame(loadBtn));
         deleteBtn.setOnAction(e -> deleteGame(deleteBtn));
@@ -85,30 +96,15 @@ public class BoardView {
         initializeBoardUI();
     }
 
-    public void setSurrenderAction(Runnable action) {
-        surrenderBtn.setOnAction(e -> action.run());
-    }
-
-    public void setDrawAction(Runnable action) {
-        drawBtn.setOnAction(e -> action.run());
-    }
-
-    public void setRematchAction(Runnable action) {
-        rematchBtn.setOnAction(e -> action.run());
-    }
-
-    public void setLeaveAction(Runnable action) {
-        leaveBtn.setOnAction(e -> action.run());
-    }
-
-    private void surrenderGame() {
-        System.out.println("[DEBUG] Kliknięto 'PODDAJ SIĘ'");
-        System.out.println("[DEBUG] Gra zakończona pomyślnie - wyłączam planszę");
-        disableBoard();
-    }
-
     public void setGameManager(com.example.checkers.model.GameManager gm) {
         this.gameManager = gm;
+    }
+
+    public void setSinglePlayerMode(boolean isSinglePlayer) {
+        this.isSinglePlayer = isSinglePlayer;
+        if (isSinglePlayer) {
+            drawBtn.setDisable(true);
+        }
     }
 
     public String getGameStateAsJson() {
@@ -130,7 +126,6 @@ public class BoardView {
     public void loadGameStateFromJson(String json) {
         if (gameManager == null) return;
         gameManager.loadGameStateJsonCore(json);
-
         moveLog.getItems().clear();
         Matcher mLog = Pattern.compile("\"log\"\\s*:\\s*\\[(.*?)\\]", Pattern.DOTALL).matcher(json);
         if (mLog.find()) {
@@ -147,20 +142,16 @@ public class BoardView {
         if (gameManager == null) return;
         try (PrintWriter out = new PrintWriter("manual_save.json")) {
             out.print(getGameStateAsJson());
-
             String originalText = saveBtn.getText();
             saveBtn.setText("ZAPISANO!");
             saveBtn.setStyle("-fx-background-color: #f5f682; -fx-text-fill: black; -fx-font-weight: bold; -fx-cursor: hand;");
-
             PauseTransition pause = new PauseTransition(Duration.seconds(1.5));
             pause.setOnFinished(e -> {
                 saveBtn.setText(originalText);
                 styleControlBtn(saveBtn);
             });
             pause.play();
-        } catch (IOException ex) {
-            ex.printStackTrace();
-        }
+        } catch (IOException ex) { ex.printStackTrace(); }
     }
 
     private void loadGame(Button loadBtn) {
@@ -170,20 +161,16 @@ public class BoardView {
             try {
                 String json = new String(Files.readAllBytes(file.toPath()));
                 loadGameStateFromJson(json);
-
                 String originalText = loadBtn.getText();
                 loadBtn.setText("WCZYTANO!");
                 loadBtn.setStyle("-fx-background-color: #f5f682; -fx-text-fill: black; -fx-font-weight: bold; -fx-cursor: hand;");
-
                 PauseTransition pause = new PauseTransition(Duration.seconds(1.5));
                 pause.setOnFinished(e -> {
                     loadBtn.setText(originalText);
                     styleControlBtn(loadBtn);
                 });
                 pause.play();
-            } catch (IOException ex) {
-                ex.printStackTrace();
-            }
+            } catch (IOException ex) { ex.printStackTrace(); }
         }
     }
 
@@ -193,7 +180,6 @@ public class BoardView {
             String originalText = deleteBtn.getText();
             deleteBtn.setText("USUNIĘTO!");
             deleteBtn.setStyle("-fx-background-color: #f5f682; -fx-text-fill: black; -fx-font-weight: bold; -fx-cursor: hand;");
-
             PauseTransition pause = new PauseTransition(Duration.seconds(1.5));
             pause.setOnFinished(e -> {
                 deleteBtn.setText(originalText);
@@ -203,87 +189,89 @@ public class BoardView {
         }
     }
 
-    private void styleControlBtn(Button btn) {
-        btn.setMaxWidth(Double.MAX_VALUE);
-        btn.setStyle("-fx-background-color: #2e7d32; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;");
-    }
-
-    public void addMoveToLog(int fromRow, int fromCol, int toRow, int toCol, String playerName) {
-        String from = (char)('A' + fromCol) + "" + (Board.SIZE - fromRow);
-        String to = (char)('A' + toCol) + "" + (Board.SIZE - toRow);
-        String logEntry = String.format("%-8s: %s -> %s", playerName, from, to);
-        moveLog.getItems().add(0, logEntry);
-    }
-
     private ImageView createPieceImageView(Piece piece) {
-        String path = "/com/example/checkers/pieces/";
-        if (piece.getType() == Piece.PieceType.WHITE) path += piece.isKing() ? "white_king.png" : "white.png";
-        else path += piece.isKing() ? "black_king.png" : "black.png";
-        InputStream stream = getClass().getResourceAsStream(path);
-        if (stream == null) {
-            String fb = (piece.getType() == Piece.PieceType.WHITE) ? "white.png" : "black.png";
-            stream = getClass().getResourceAsStream("/com/example/checkers/pieces/" + fb);
+        String colorName = (piece.getType() == Piece.PieceType.WHITE) ? "white" : "black";
+        String kingSuffix = piece.isKing() ? "_king" : "";
+        String path = "/com/example/checkers/pieces/" + colorName + kingSuffix + ".png";
+
+        try {
+            Image img = new Image(getClass().getResourceAsStream(path));
+            ImageView iv = new ImageView(img);
+            iv.fitWidthProperty().bind(gridPane.widthProperty().divide(Board.SIZE).multiply(0.8));
+            iv.fitHeightProperty().bind(gridPane.heightProperty().divide(Board.SIZE).multiply(0.8));
+            iv.setPreserveRatio(true);
+
+            if (isFlipped) iv.setRotate(180);
+            return iv;
+        } catch (Exception e) {
+            System.err.println("Nie znaleziono grafiki: " + path);
+            return null;
         }
-        if (stream == null) return null;
-        ImageView iv = new ImageView(new Image(stream));
-        iv.setPreserveRatio(true);
-        iv.fitWidthProperty().bind(gridPane.widthProperty().divide(Board.SIZE).multiply(0.75));
-        iv.fitHeightProperty().bind(gridPane.heightProperty().divide(Board.SIZE).multiply(0.75));
-        if (isFlipped) iv.setRotate(180);
-        return iv;
     }
 
     public void updateView() {
-        for (int row = 0; row < Board.SIZE; row++) {
-            for (int col = 0; col < Board.SIZE; col++) {
-                Piece pm = boardModel.getPiece(row, col);
-                buttons[row][col].setGraphic(pm != null ? createPieceImageView(pm) : null);
+        for (int r = 0; r < Board.SIZE; r++) {
+            for (int c = 0; c < Board.SIZE; c++) {
+                Piece p = boardModel.getPiece(r, c);
+                buttons[r][c].setGraphic(p != null ? createPieceImageView(p) : null);
             }
         }
     }
 
     private void initializeBoardUI() {
+        gridPane.getChildren().clear();
         for (int i = 0; i < Board.SIZE; i++) {
-            ColumnConstraints cc = new ColumnConstraints(); cc.setPercentWidth(100.0 / Board.SIZE);
+            ColumnConstraints cc = new ColumnConstraints();
+            cc.setPercentWidth(100.0 / Board.SIZE);
             gridPane.getColumnConstraints().add(cc);
-            RowConstraints rc = new RowConstraints(); rc.setPercentHeight(100.0 / Board.SIZE);
+
+            RowConstraints rc = new RowConstraints();
+            rc.setPercentHeight(100.0 / Board.SIZE);
             gridPane.getRowConstraints().add(rc);
         }
-        for (int row = 0; row < Board.SIZE; row++) {
-            for (int col = 0; col < Board.SIZE; col++) {
+
+        for (int r = 0; r < Board.SIZE; r++) {
+            for (int c = 0; c < Board.SIZE; c++) {
                 Button cell = new Button();
+                cell.setMinSize(0, 0);
                 cell.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
-                String color = ((row + col) % 2 == 0) ? ThemeManager.lightSquareColor : ThemeManager.darkSquareColor;
-                String base = "-fx-background-color: " + color + "; -fx-background-insets: 0; -fx-background-radius: 0; -fx-border-color: transparent; -fx-border-width: 3;";
-                cell.setStyle(base);
-                buttons[row][col] = cell;
-                gridPane.add(cell, col, row);
+                String color = ((r + c) % 2 == 0) ? ThemeManager.lightSquareColor : ThemeManager.darkSquareColor;
+                cell.setStyle("-fx-background-color: " + color + "; -fx-background-insets: 0; -fx-background-radius: 0; -fx-border-color: transparent; -fx-border-width: 3;");
+                buttons[r][c] = cell;
+                gridPane.add(cell, c, r);
             }
         }
         updateView();
     }
 
-    public HBox getRootContainer() { return rootContainer; }
-    public Button[][] getButtons() { return buttons; }
-    public void flipBoard() {
-        gridPane.setRotate(180);
-        this.isFlipped = true;
-        updateView();
-    }
-    public void clearMoveLog() {
-        moveLog.getItems().clear();
-    }
-    public void disableBoard() {
-        gridPane.setDisable(true);
-        surrenderBtn.setDisable(true);
-        drawBtn.setDisable(true);
-        rematchBtn.setDisable(false);
-    }
+    public void setSurrenderAction(Runnable a) { surrenderBtn.setOnAction(e -> a.run()); }
+    public void setDrawAction(Runnable a) { drawBtn.setOnAction(e -> a.run()); }
+    public void setRematchAction(Runnable a) { rematchBtn.setOnAction(e -> a.run()); }
+    public void setLeaveAction(Runnable a) { leaveBtn.setOnAction(e -> a.run()); }
 
+    public void disableBoard() { gridPane.setDisable(true); surrenderBtn.setDisable(true); drawBtn.setDisable(true); rematchBtn.setDisable(false); }
     public void enableBoard() {
         gridPane.setDisable(false);
         surrenderBtn.setDisable(false);
-        drawBtn.setDisable(false);
+        if (!isSinglePlayer) {
+            drawBtn.setDisable(false);
+        }
         rematchBtn.setDisable(true);
+    }
+
+    public void clearMoveLog() { moveLog.getItems().clear(); }
+    public void flipBoard() { isFlipped = true; gridPane.setRotate(180); updateView(); }
+
+    public HBox getRootContainer() { return rootContainer; }
+    public Button[][] getButtons() { return buttons; }
+
+    public void addMoveToLog(int fR, int fC, int tR, int tC, String pName) {
+        String entry = String.format("%-8s: %c%d->%c%d", pName, (char)('A'+fC), 8-fR, (char)('A'+tC), 8-tR);
+        moveLog.getItems().add(0, entry);
+    }
+
+    private void styleControlBtn(Button btn) {
+        btn.setMaxWidth(Double.MAX_VALUE);
+        btn.setStyle("-fx-background-color: #2e7d32; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;");
     }
 }

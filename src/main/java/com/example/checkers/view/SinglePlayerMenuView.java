@@ -8,6 +8,7 @@ import com.example.checkers.model.Piece;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.layout.HBox;
@@ -94,6 +95,21 @@ public class SinglePlayerMenuView {
         Board board = new Board();
         GameManager gm = new GameManager(board);
         BoardView view = new BoardView(board);
+        view.setSinglePlayerMode(true);
+        view.setLeaveAction(() -> {
+            new MainMenuView(stage, username, password).show();
+        });
+        view.setRematchAction(() -> {
+            startGame(difficulty, false);
+        });
+        view.setSurrenderAction(() -> {
+            view.disableBoard();
+            Alert alert = new Alert(Alert.AlertType.INFORMATION);
+            alert.setTitle("Koniec Gry");
+            alert.setHeaderText("Poddałeś się");
+            alert.showAndWait();
+        });
+
         ComputerPlayer ai = new ComputerPlayer(gm, board, Piece.PieceType.BLACK, difficulty);
         new MoveSinglePlayer(gm, view, ai);
 
