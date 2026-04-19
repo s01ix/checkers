@@ -1,5 +1,6 @@
 package com.example.checkers.view;
 
+
 import com.example.checkers.model.Board;
 import com.example.checkers.model.Piece;
 import javafx.animation.PauseTransition;
@@ -13,10 +14,12 @@ import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import javafx.util.Duration;
 
+
 import java.io.*;
 import java.nio.file.Files;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
 
 public class BoardView {
     private final Board boardModel;
@@ -28,10 +31,12 @@ public class BoardView {
     private boolean isSinglePlayer = false;
     private com.example.checkers.model.GameManager gameManager;
 
+
     private final Button surrenderBtn;
     private final Button drawBtn;
     private final Button rematchBtn;
     private final Button leaveBtn;
+
 
     public BoardView(Board boardModel) {
         this.boardModel = boardModel;
@@ -39,15 +44,19 @@ public class BoardView {
         this.rootContainer = new HBox(20);
         this.moveLog = new ListView<>();
 
+
         this.rootContainer.setStyle("-fx-background-color: #2c1b0e;");
         this.rootContainer.setPadding(new Insets(20));
         this.rootContainer.setAlignment(Pos.CENTER);
 
+
         this.gridPane.setMinSize(0, 0);
+
 
         StackPane boardWrapper = new StackPane(gridPane);
         boardWrapper.setAlignment(Pos.CENTER);
         HBox.setHgrow(boardWrapper, Priority.ALWAYS);
+
 
         NumberBinding boardSize = Bindings.min(boardWrapper.widthProperty(), boardWrapper.heightProperty());
         gridPane.maxWidthProperty().bind(boardSize);
@@ -55,28 +64,35 @@ public class BoardView {
         gridPane.prefWidthProperty().bind(boardSize);
         gridPane.prefHeightProperty().bind(boardSize);
 
+
         VBox sidePanel = new VBox(10);
         sidePanel.setMinWidth(200);
         sidePanel.prefWidthProperty().bind(rootContainer.widthProperty().multiply(0.3));
         sidePanel.styleProperty().bind(Bindings.concat("-fx-font-size: ", rootContainer.heightProperty().divide(45), "px;"));
         sidePanel.setAlignment(Pos.TOP_CENTER);
 
+
         Label logLabel = new Label("HISTORIA RUCHÓW");
         logLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold;");
+
 
         VBox.setVgrow(moveLog, Priority.ALWAYS);
         moveLog.setStyle("-fx-background-color: #3e2716; -fx-control-inner-background: #3e2716; -fx-text-fill: #f0d9b5; -fx-font-family: 'Courier New';");
 
+
         Button saveBtn = new Button("ZAPISZ GRĘ");
         Button loadBtn = new Button("WCZYTAJ GRĘ");
         Button deleteBtn = new Button("USUŃ ZAPIS");
+
 
         this.surrenderBtn = new Button("PODDAJ SIĘ");
         this.drawBtn = new Button("REMIS");
         this.rematchBtn = new Button("REWANŻ");
         this.leaveBtn = new Button("OPUŚĆ");
 
+
         rematchBtn.setDisable(true);
+
 
         styleControlBtn(saveBtn);
         styleControlBtn(loadBtn);
@@ -86,19 +102,24 @@ public class BoardView {
         styleControlBtn(rematchBtn);
         styleControlBtn(leaveBtn);
 
+
         saveBtn.setOnAction(e -> saveGame(saveBtn));
         loadBtn.setOnAction(e -> loadGame(loadBtn));
         deleteBtn.setOnAction(e -> deleteGame(deleteBtn));
 
+
         sidePanel.getChildren().addAll(logLabel, moveLog, saveBtn, loadBtn, deleteBtn, surrenderBtn, drawBtn, rematchBtn, leaveBtn);
         this.rootContainer.getChildren().addAll(boardWrapper, sidePanel);
+
 
         initializeBoardUI();
     }
 
+
     public void setGameManager(com.example.checkers.model.GameManager gm) {
         this.gameManager = gm;
     }
+
 
     public void setSinglePlayerMode(boolean isSinglePlayer) {
         this.isSinglePlayer = isSinglePlayer;
@@ -106,6 +127,7 @@ public class BoardView {
             drawBtn.setDisable(true);
         }
     }
+
 
     public String getGameStateAsJson() {
         if (gameManager == null) return "{}";
@@ -123,6 +145,7 @@ public class BoardView {
         return sb.toString();
     }
 
+
     public void loadGameStateFromJson(String json) {
         if (gameManager == null) return;
         gameManager.loadGameStateJsonCore(json);
@@ -137,6 +160,7 @@ public class BoardView {
         }
         updateView();
     }
+
 
     private void saveGame(Button saveBtn) {
         if (gameManager == null) return;
@@ -153,6 +177,7 @@ public class BoardView {
             pause.play();
         } catch (IOException ex) { ex.printStackTrace(); }
     }
+
 
     private void loadGame(Button loadBtn) {
         if (gameManager == null) return;
@@ -174,6 +199,7 @@ public class BoardView {
         }
     }
 
+
     private void deleteGame(Button deleteBtn) {
         File file = new File("manual_save.json");
         if (file.exists() && file.delete()) {
@@ -189,17 +215,32 @@ public class BoardView {
         }
     }
 
+
     private ImageView createPieceImageView(Piece piece) {
         String colorName = (piece.getType() == Piece.PieceType.WHITE) ? "white" : "black";
         String kingSuffix = piece.isKing() ? "_king" : "";
         String path = "/com/example/checkers/pieces/" + colorName + kingSuffix + ".png";
 
+
+        InputStream is = getClass().getResourceAsStream(path);
+        if (is == null && piece.isKing()) {
+            path = "/com/example/checkers/pieces/" + colorName + ".png";
+            is = getClass().getResourceAsStream(path);
+        }
+
+
         try {
-            Image img = new Image(getClass().getResourceAsStream(path));
+            Image img = new Image(is);
             ImageView iv = new ImageView(img);
-            iv.fitWidthProperty().bind(gridPane.widthProperty().divide(Board.SIZE).multiply(0.8));
-            iv.fitHeightProperty().bind(gridPane.heightProperty().divide(Board.SIZE).multiply(0.8));
+            if (piece.isKing() && !path.contains("_king")) {
+                iv.fitWidthProperty().bind(gridPane.widthProperty().divide(Board.SIZE).multiply(1.0));
+                iv.fitHeightProperty().bind(gridPane.heightProperty().divide(Board.SIZE).multiply(1.0));
+            } else {
+                iv.fitWidthProperty().bind(gridPane.widthProperty().divide(Board.SIZE).multiply(0.8));
+                iv.fitHeightProperty().bind(gridPane.heightProperty().divide(Board.SIZE).multiply(0.8));
+            }
             iv.setPreserveRatio(true);
+
 
             if (isFlipped) iv.setRotate(180);
             return iv;
@@ -208,6 +249,7 @@ public class BoardView {
             return null;
         }
     }
+
 
     public void updateView() {
         for (int r = 0; r < Board.SIZE; r++) {
@@ -218,6 +260,7 @@ public class BoardView {
         }
     }
 
+
     private void initializeBoardUI() {
         gridPane.getChildren().clear();
         for (int i = 0; i < Board.SIZE; i++) {
@@ -225,10 +268,12 @@ public class BoardView {
             cc.setPercentWidth(100.0 / Board.SIZE);
             gridPane.getColumnConstraints().add(cc);
 
+
             RowConstraints rc = new RowConstraints();
             rc.setPercentHeight(100.0 / Board.SIZE);
             gridPane.getRowConstraints().add(rc);
         }
+
 
         for (int r = 0; r < Board.SIZE; r++) {
             for (int c = 0; c < Board.SIZE; c++) {
@@ -244,10 +289,12 @@ public class BoardView {
         updateView();
     }
 
+
     public void setSurrenderAction(Runnable a) { surrenderBtn.setOnAction(e -> a.run()); }
     public void setDrawAction(Runnable a) { drawBtn.setOnAction(e -> a.run()); }
     public void setRematchAction(Runnable a) { rematchBtn.setOnAction(e -> a.run()); }
     public void setLeaveAction(Runnable a) { leaveBtn.setOnAction(e -> a.run()); }
+
 
     public void disableBoard() { gridPane.setDisable(true); surrenderBtn.setDisable(true); drawBtn.setDisable(true); rematchBtn.setDisable(false); }
     public void enableBoard() {
@@ -259,16 +306,20 @@ public class BoardView {
         rematchBtn.setDisable(true);
     }
 
+
     public void clearMoveLog() { moveLog.getItems().clear(); }
     public void flipBoard() { isFlipped = true; gridPane.setRotate(180); updateView(); }
 
+
     public HBox getRootContainer() { return rootContainer; }
     public Button[][] getButtons() { return buttons; }
+
 
     public void addMoveToLog(int fR, int fC, int tR, int tC, String pName) {
         String entry = String.format("%-8s: %c%d->%c%d", pName, (char)('A'+fC), 8-fR, (char)('A'+tC), 8-tR);
         moveLog.getItems().add(0, entry);
     }
+
 
     private void styleControlBtn(Button btn) {
         btn.setMaxWidth(Double.MAX_VALUE);

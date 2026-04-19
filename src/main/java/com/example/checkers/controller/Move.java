@@ -4,6 +4,7 @@ import com.example.checkers.model.GameManager;
 import com.example.checkers.network.NetworkClient;
 import com.example.checkers.view.BoardView;
 import com.example.checkers.view.ThemeManager;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.Dragboard;
@@ -66,6 +67,18 @@ public class Move {
                             if (success) {
                                 boardView.updateView();
                                 boardView.addMoveToLog(fromRow, fromCol, r, c, playerName);
+
+                                String res = gameManager.checkWin();
+                                if (!res.equals("NONE")) {
+                                    boardView.disableBoard();
+                                    Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                                    alert.setTitle("Koniec Gry");
+                                    if (res.equals("WHITE")) alert.setHeaderText("Wygrał biały!");
+                                    else if (res.equals("BLACK")) alert.setHeaderText("Wygrał czarny!");
+                                    else alert.setHeaderText("Remis!");
+                                    alert.setContentText("Możesz zagrać ponownie lub opuścić grę.");
+                                    alert.showAndWait();
+                                }
                             }
                         } else {
                             if (networkClient.getMyColor() == gameManager.getCurrentPlayer().getColor()) {
@@ -114,6 +127,18 @@ public class Move {
                 if (gameManager.performMove(selectedRow, selectedCol, row, col)) {
                     boardView.updateView();
                     boardView.addMoveToLog(fromRow, fromCol, row, col, playerName);
+
+                    String res = gameManager.checkWin();
+                    if (!res.equals("NONE")) {
+                        boardView.disableBoard();
+                        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                        alert.setTitle("Koniec Gry");
+                        if (res.equals("WHITE")) alert.setHeaderText("Wygrał biały!");
+                        else if (res.equals("BLACK")) alert.setHeaderText("Wygrał czarny!");
+                        else alert.setHeaderText("Remis!");
+                        alert.setContentText("Możesz zagrać ponownie lub opuścić grę.");
+                        alert.showAndWait();
+                    }
                 }
             } else {
                 if (networkClient.getMyColor() == gameManager.getCurrentPlayer().getColor()) {

@@ -43,6 +43,18 @@ public class Listener implements Runnable {
                         localGameManager.performMove(r1, c1, r2, c2);
                         boardView.updateView();
                         boardView.addMoveToLog(r1, c1, r2, c2, pName);
+
+                        String res = localGameManager.checkWin();
+                        if (!res.equals("NONE")) {
+                            boardView.disableBoard();
+                            Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                            alert.setTitle("Koniec Gry");
+                            if (res.equals("WHITE")) alert.setHeaderText("Wygrał biały!");
+                            else if (res.equals("BLACK")) alert.setHeaderText("Wygrał czarny!");
+                            else alert.setHeaderText("Remis!");
+                            alert.setContentText("Możesz zagrać ponownie lub opuścić grę.");
+                            alert.showAndWait();
+                        }
                     });
 
                 } else if (msg.equals("OPPONENT_SURRENDERED")) {

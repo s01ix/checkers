@@ -6,6 +6,7 @@ import com.example.checkers.model.Piece;
 import com.example.checkers.view.BoardView;
 import com.example.checkers.view.ThemeManager;
 import javafx.animation.PauseTransition;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.util.Duration;
 import java.io.PrintWriter;
@@ -69,12 +70,30 @@ public class MoveSinglePlayer {
                 boardView.updateView();
                 boardView.addMoveToLog(fr, fc, row, col, playerName);
                 autoSave();
+                if (checkGameOver()) return;
                 checkAiTurn();
             }
 
             clearHighlight(selectedRow, selectedCol);
             selectedRow = -1; selectedCol = -1;
         }
+    }
+
+    private boolean checkGameOver() {
+        String result = gameManager.checkWin();
+        if (!result.equals("NONE")) {
+            boardView.disableBoard();
+            new java.io.File("autosave_single.json").delete();
+            Alert alert = new Alert(Alert.AlertType.INFORMATION);
+            alert.setTitle("Koniec Gry");
+            if (result.equals("WHITE")) alert.setHeaderText("Wygrał biały!");
+            else if (result.equals("BLACK")) alert.setHeaderText("Wygrał czarny!");
+            else alert.setHeaderText("Remis!");
+            alert.setContentText("Możesz zagrać ponownie lub opuścić grę.");
+            alert.showAndWait();
+            return true;
+        }
+        return false;
     }
 
     private void checkAiTurn() {
@@ -85,6 +104,7 @@ public class MoveSinglePlayer {
                 boardView.updateView();
                 boardView.addMoveToLog(0, 0, 0, 0, "Komputer");
                 autoSave();
+                if (checkGameOver()) return;
                 if (gameManager.getCurrentPlayer().getColor() == Piece.PieceType.BLACK) {
                     checkAiTurn();
                 }

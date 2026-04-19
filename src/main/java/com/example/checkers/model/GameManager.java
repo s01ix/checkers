@@ -285,26 +285,27 @@ public class GameManager {
             switchPlayer();
             String state = getBoardStateString();
             positionHistory.put(state, positionHistory.getOrDefault(state, 0) + 1);
-            checkWin();
-            checkDraw();
             return true;
         }
         return false;
     }
 
-    public void checkWin(){
-        int whitePeace = 0;
-        int blackPieces = 0;
-        for(int r = 0; r < Board.SIZE; r++){
-            for(int c = 0; c < Board.SIZE; c++){
-                Piece piece = board.getPiece(r, c);
-                if(piece != null){
-                    if(piece.getType() == Piece.PieceType.WHITE) whitePeace++;
+    public String checkWin() {
+        int whitePieces = 0, blackPieces = 0;
+        for (int r = 0; r < Board.SIZE; r++) {
+            for (int c = 0; c < Board.SIZE; c++) {
+                Piece p = board.getPiece(r, c);
+                if (p != null) {
+                    if (p.getType() == Piece.PieceType.WHITE) whitePieces++;
                     else blackPieces++;
                 }
             }
         }
-        if(whitePeace == 0 || blackPieces == 0 || !hasAnyValidMoves(currentPlayer)) return;
+        if (whitePieces == 0) return "BLACK";
+        if (blackPieces == 0) return "WHITE";
+        if (!hasAnyValidMoves(currentPlayer)) return currentPlayer.getColor() == Piece.PieceType.WHITE ? "BLACK" : "WHITE";
+        if (checkDraw()) return "DRAW";
+        return "NONE";
     }
 
     public boolean checkDraw() {
