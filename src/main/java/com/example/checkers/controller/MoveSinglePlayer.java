@@ -63,20 +63,46 @@ public class MoveSinglePlayer {
                 return;
             }
 
-            String playerName = gameManager.getCurrentPlayer().getName();
             int fr = selectedRow, fc = selectedCol;
-
             if (gameManager.performMove(selectedRow, selectedCol, row, col)) {
                 boardView.updateView();
-                boardView.addMoveToLog(fr, fc, row, col, playerName);
+                boardView.addMoveToLog(fr, fc, row, col, "Gracz");
                 autoSave();
                 if (checkGameOver()) return;
-                checkAiTurn();
+
+                if (gameManager.getCurrentPlayer().getColor() == Piece.PieceType.BLACK) {
+                    checkAiTurn();
+                }
             }
 
             clearHighlight(selectedRow, selectedCol);
             selectedRow = -1; selectedCol = -1;
         }
+    }
+
+    private void checkAiTurn() {
+        boardView.disableBoard(); // Blokujemy planszę, żeby gracz nie klikał podczas ruchu bota
+        PauseTransition pause = new PauseTransition(Duration.seconds(0.8));
+        pause.setOnFinished(e -> {
+            int[] move = ai.makeMoveAndGetCoords(); // Teraz bot zwraca tablicę int[] z ruchem
+            if (move != null) {
+                boardView.updateView();
+                boardView.addMoveToLog(move[0], move[1], move[2], move[3], "Komputer");
+                autoSave();
+
+                if (checkGameOver()) return;
+
+                // Jeśli bot ma serię bić, wywołujemy go ponownie
+                if (gameManager.getCurrentPlayer().getColor() == Piece.PieceType.BLACK) {
+                    checkAiTurn();
+                } else {
+                    boardView.enableBoard();
+                }
+            } else {
+                boardView.enableBoard();
+            }
+        });
+        pause.play();
     }
 
     private boolean checkGameOver() {
@@ -96,40 +122,19 @@ public class MoveSinglePlayer {
         return false;
     }
 
-    private void checkAiTurn() {
-        if (gameManager.getCurrentPlayer().getColor() == Piece.PieceType.BLACK) {
-            PauseTransition pause = new PauseTransition(Duration.seconds(0.8));
-            pause.setOnFinished(e -> {
-                ai.makeMove();
-                boardView.updateView();
-                boardView.addMoveToLog(0, 0, 0, 0, "Komputer");
-                autoSave();
-                if (checkGameOver()) return;
-                if (gameManager.getCurrentPlayer().getColor() == Piece.PieceType.BLACK) {
-                    checkAiTurn();
-                }
-            });
-            pause.play();
-        }
-    }
-
     private void highlight(int r, int c) {
         String colorStyle = ((r + c) % 2 == 0) ? ThemeManager.lightSquareColor : ThemeManager.darkSquareColor;
         String baseStyle = "-fx-background-color: " + colorStyle + "; " +
-                "-fx-background-insets: 0; " +
-                "-fx-background-radius: 0; " +
-                "-fx-border-color: yellow; " +
-                "-fx-border-width: 3;";
+                "-fx-background-insets: 0; -fx-background-radius: 0; " +
+                "-fx-border-color: yellow; -fx-border-width: 3;";
         boardView.getButtons()[r][c].setStyle(baseStyle);
     }
 
     private void clearHighlight(int r, int c) {
         String colorStyle = ((r + c) % 2 == 0) ? ThemeManager.lightSquareColor : ThemeManager.darkSquareColor;
         String baseStyle = "-fx-background-color: " + colorStyle + "; " +
-                "-fx-background-insets: 0; " +
-                "-fx-background-radius: 0; " +
-                "-fx-border-color: transparent; " +
-                "-fx-border-width: 3;";
+                "-fx-background-insets: 0; -fx-background-radius: 0; " +
+                "-fx-border-color: transparent; -fx-border-width: 3;";
         boardView.getButtons()[r][c].setStyle(baseStyle);
     }
 }
