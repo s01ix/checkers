@@ -20,11 +20,15 @@ public class MainMenuView {
     private final Stage stage;
     private final String username;
     private final String password;
+    private final PrintWriter out;    // Dodane pole
+    private final BufferedReader in;
 
-    public MainMenuView(Stage stage, String username, String password) {
+    public MainMenuView(Stage stage, String username, String password,PrintWriter out, BufferedReader in) {
         this.stage    = stage;
         this.username = username;
         this.password = password;
+        this.out = out;
+        this.in = in;
     }
 
     public void show() {
@@ -70,46 +74,51 @@ public class MainMenuView {
         statusLabel.setWrapText(true);
 
         settingsBtn.setOnAction(e ->
-                new SettingsView(stage, username, password, null, null).show()
+                new SettingsView(stage, username, password, out, in).show()
         );
 
         singlePlayerBtn.setOnAction(e ->
-                new SinglePlayerMenuView(stage, username, password).show()
+                new SinglePlayerMenuView(stage, username, password, out, in).show()
         );
 
         multiPlayerBtn.setOnAction(e -> {
-            statusLabel.setText("Łączenie z serwerem...");
-            multiPlayerBtn.setDisable(true);
+          //  statusLabel.setText("Łączenie z serwerem...");
+           // multiPlayerBtn.setDisable(true);
 
-            new Thread(() -> {
-                try {
-                    Socket socket = new Socket("127.0.0.1", 12345);
-                    PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-                    BufferedReader in = new BufferedReader(
-                            new InputStreamReader(socket.getInputStream())
-                    );
-
-                    out.println("LOGIN " + username + " " + password);
-                    String response = in.readLine();
-
-                    if ("LOGIN_SUCCESS".equals(response)) {
-                        Platform.runLater(() -> {
-                            multiPlayerBtn.setDisable(false);
-                            new LobbyView(stage, username, password, out, in).show();
-                        });
+            //new Thread(() -> {
+              //  try {
+//                    Socket socket = new Socket("127.0.0.1", 12345);
+//                    PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+//                    BufferedReader in = new BufferedReader(
+//                            new InputStreamReader(socket.getInputStream())
+//                    );
+                    if (this.out != null && this.in != null) {
+                        new LobbyView(stage, username, password, out, in).show();
                     } else {
-                        Platform.runLater(() -> {
-                            multiPlayerBtn.setDisable(false);
-                            statusLabel.setText("Błąd logowania: " + response);
-                        });
+                        statusLabel.setText("Błąd: Utracono połączenie z serwerem!");
                     }
-                } catch (IOException ex) {
-                    Platform.runLater(() -> {
-                        multiPlayerBtn.setDisable(false);
-                        statusLabel.setText("Nie znaleziono serwera!");
-                    });
-                }
-            }).start();
+//
+//                    out.println("LOGIN " + username + " " + password);
+//                    String response = in.readLine();
+//
+//                    if ("LOGIN_SUCCESS".equals(response)) {
+//                        Platform.runLater(() -> {
+//                            multiPlayerBtn.setDisable(false);
+//                            new LobbyView(stage, username, password, out, in).show();
+//                        });
+//                    } else {
+//                        Platform.runLater(() -> {
+//                            multiPlayerBtn.setDisable(false);
+//                            statusLabel.setText("Błąd logowania: " + response);
+//                        });
+//                    }
+//                } catch (IOException ex) {
+//                    Platform.runLater(() -> {
+//                        multiPlayerBtn.setDisable(false);
+//                        statusLabel.setText("Nie znaleziono serwera!");
+//                    });
+//                }
+//            }).start();
         });
 
         backBtn.setOnAction(e -> new LoginView(stage).show());

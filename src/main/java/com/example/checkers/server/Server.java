@@ -71,11 +71,11 @@ public class Server {
                     activeRooms.add(newRoom);
                     out.println("ROOM_CREATED " + newRoom.getId());
                     System.out.println("Gracz " + username + " stworzył pokój. Czekam...");
-
-                    while (!newRoom.isFull()) {
-                        Thread.sleep(100);
-                    }
-                    return;
+                    // zakomentowane żeby sprawdzić czy działa połączenie laptpa z innym laptopem
+//                    while (!newRoom.isFull()) {
+//                        Thread.sleep(100);
+//                    }
+//                    return;
                 }
                 // PRZYGOTOWANIE I WYSŁANIE DANYCH
                 else if (line.equals("GET_ROOMS")) {

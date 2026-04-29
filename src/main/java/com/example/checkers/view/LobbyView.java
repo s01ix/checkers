@@ -75,7 +75,7 @@ public class LobbyView {
             if (out != null) {
                 out.println("LEAVE_LOBBY");
             }
-            new MainMenuView(stage, username, password).show();
+            new MainMenuView(stage, username, password, out, in).show();
         });
 
         createBtn.setOnAction(e -> {
@@ -217,7 +217,7 @@ public class LobbyView {
             boardView.setLeaveAction(() -> {
                 networkClient.sendLeave();
                 // Nowe połączenie nawiąże MainMenuView przy "GRA WIELOOSOBOWA"
-                new MainMenuView(stage, username, password).show();
+                new MainMenuView(stage, username, password, out, in).show();
             });
 
             new Move(gameManager, boardView, networkClient);

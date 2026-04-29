@@ -16,18 +16,24 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.PrintWriter;
 import java.nio.file.Files;
 
 public class SinglePlayerMenuView {
     private final Stage stage;
     private final String username;
     private final String password;
+    private final PrintWriter out;    // Dodane pole
+    private final BufferedReader in;
 
-    public SinglePlayerMenuView(Stage stage, String username, String password) {
+    public SinglePlayerMenuView(Stage stage, String username, String password ,PrintWriter out, BufferedReader in) {
         this.stage = stage;
         this.username = username;
         this.password = password;
+        this.out = out;
+        this.in = in;
     }
 
     public void show() {
@@ -82,7 +88,7 @@ public class SinglePlayerMenuView {
 
         Button backBtn = createStyledMenuButton("POWRÓT");
         styleSecondaryButton(backBtn);
-        backBtn.setOnAction(e -> new MainMenuView(stage, username, password).show());
+        backBtn.setOnAction(e -> new MainMenuView(stage, username, password, out, in).show());
 
         menuBox.getChildren().addAll(titleLabel, mainActions, backBtn);
         root.getChildren().add(menuBox);
@@ -97,7 +103,7 @@ public class SinglePlayerMenuView {
         BoardView view = new BoardView(board);
         view.setSinglePlayerMode(true);
         view.setLeaveAction(() -> {
-            new MainMenuView(stage, username, password).show();
+            new MainMenuView(stage, username, password, out, in).show();
         });
         view.setRematchAction(() -> {
             startGame(difficulty, false);

@@ -73,9 +73,9 @@ public class SettingsView {
 
         backBtn.setOnAction(e -> {
             if (out != null && in != null) {
-                new MainMenuView(stage, username, password).show();
+                new MainMenuView(stage, username, password, out, in).show();
             } else {
-                new MainMenuView(stage, username, password).show();
+                new MainMenuView(stage, username, password, out, in).show();
             }
         });
 

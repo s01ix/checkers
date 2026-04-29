@@ -84,6 +84,54 @@ public class LoginView {
             new AuthorsView(stage, out, in).show();
         });
 
+//        loginButton.setOnAction(e -> {
+//            String username = usernameField.getText();
+//            String password = passwordField.getText();
+//            if (username.trim().isEmpty() || password.trim().isEmpty()) {
+//                statusLabel.setText("Błąd: Nick i hasło muszą być wypełnione!");
+//                return;
+//            }
+//            loginButton.setDisable(true);
+//            new Thread(() -> {
+//                List<String> ips = getArpIps();
+//                ips.add(0, "192.168.100.19");
+//                boolean authSuccess = false;
+//                String serverError = "Nie znaleziono serwera.";
+//                for (String ip : ips) {
+//                    try{
+//                        java.net.Socket socket = new java.net.Socket();
+//                        socket.connect(new java.net.InetSocketAddress(ip, 12345), 2000);
+//
+//                        this.out = new java.io.PrintWriter(socket.getOutputStream(), true);
+//                        this.in = new java.io.BufferedReader(new java.io.InputStreamReader(socket.getInputStream()));
+//
+//                        out.println("LOGIN " + username + " " + password);
+//                        String response = in.readLine();
+//                        if ("LOGIN_SUCCESS".equals(response)) {
+//                            authSuccess = true;
+//                            break;
+//                        } else if (response != null && response.startsWith("LOGIN_FAILED ")) {
+//                            serverError = response.substring("LOGIN_FAILED ".length());
+//                            break;
+//                        }
+//                    } catch (Exception ex) { }
+//                }
+//
+//                boolean finalSuccess = authSuccess;
+//                String finalError = serverError;
+//
+//                javafx.application.Platform.runLater(() -> {
+//                    if (finalSuccess) {
+//                        MainMenuView mainMenu = new MainMenuView(stage, username, password, out, in);
+//                        mainMenu.show();
+//                    } else {
+//                        statusLabel.setText("Błąd: " + finalError);
+//                        loginButton.setDisable(false);
+//                    }
+//                });
+//            }).start();
+//        });
+
         loginButton.setOnAction(e -> {
             String username = usernameField.getText();
             String password = passwordField.getText();
@@ -93,25 +141,33 @@ public class LoginView {
             }
             loginButton.setDisable(true);
             new Thread(() -> {
-                List<String> ips = getArpIps();
-                ips.add(0, "127.0.0.1");
+                // Używamy tylko Twojego IP, pętla ARP jest zbędna i spowalnia
+                String ip = "172.20.10.4";
                 boolean authSuccess = false;
                 String serverError = "Nie znaleziono serwera.";
-                for (String ip : ips) {
-                    try (java.net.Socket socket = new java.net.Socket()) {
-                        socket.connect(new java.net.InetSocketAddress(ip, 12345), 500);
-                        java.io.PrintWriter out = new java.io.PrintWriter(socket.getOutputStream(), true);
-                        java.io.BufferedReader in = new java.io.BufferedReader(new java.io.InputStreamReader(socket.getInputStream()));
-                        out.println("LOGIN " + username + " " + password);
-                        String response = in.readLine();
-                        if ("LOGIN_SUCCESS".equals(response)) {
-                            authSuccess = true;
-                            break;
-                        } else if (response != null && response.startsWith("LOGIN_FAILED ")) {
-                            serverError = response.substring("LOGIN_FAILED ".length());
-                            break;
-                        }
-                    } catch (Exception ex) { }
+
+                try {
+                    // Rezygnujemy z try-with-resources (brak nawiasów okrągłych),
+                    // aby socket nie zamknął się samoczynnie.
+                    java.net.Socket socket = new java.net.Socket();
+                    socket.connect(new java.net.InetSocketAddress(ip, 12345), 2000);
+
+                    this.out = new java.io.PrintWriter(socket.getOutputStream(), true);
+                    this.in = new java.io.BufferedReader(new java.io.InputStreamReader(socket.getInputStream()));
+
+                    this.out.println("LOGIN " + username + " " + password);
+                    String response = this.in.readLine();
+
+                    if ("LOGIN_SUCCESS".equals(response)) {
+                        authSuccess = true;
+                    } else if (response != null && response.startsWith("LOGIN_FAILED ")) {
+                        serverError = response.substring("LOGIN_FAILED ".length());
+                        socket.close(); // Zamykamy tylko jeśli się NIE udało
+                    } else {
+                        socket.close();
+                    }
+                } catch (Exception ex) {
+                    serverError = "Błąd połączenia: " + ex.getMessage();
                 }
 
                 boolean finalSuccess = authSuccess;
@@ -119,7 +175,8 @@ public class LoginView {
 
                 javafx.application.Platform.runLater(() -> {
                     if (finalSuccess) {
-                        MainMenuView mainMenu = new MainMenuView(stage, username, password);
+                        // Przekazujemy istniejące i OTWARTE strumienie do kolejnego widoku
+                        MainMenuView mainMenu = new MainMenuView(stage, username, password, out, in);
                         mainMenu.show();
                     } else {
                         statusLabel.setText("Błąd: " + finalError);
@@ -128,7 +185,6 @@ public class LoginView {
                 });
             }).start();
         });
-
         // DODANO authorsButton DO WIDOKU
         menuBox.getChildren().addAll(titleLabel, usernameField, passwordField, loginButton, registerButton, authorsButton, statusLabel);
         root.getChildren().add(menuBox);
@@ -196,7 +252,8 @@ public class LoginView {
 
     private void connectToServer() {
         try {
-            java.net.Socket socket = new java.net.Socket("127.0.0.1", 12345);
+            //zmiana na własny adres IP
+            java.net.Socket socket = new java.net.Socket("172.20.10.4", 12345);
             this.out = new java.io.PrintWriter(socket.getOutputStream(), true);
             this.in = new java.io.BufferedReader(new java.io.InputStreamReader(socket.getInputStream()));
             System.out.println("Połączono z serwerem.");
